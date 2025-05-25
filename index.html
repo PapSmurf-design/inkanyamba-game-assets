@@ -1,0 +1,2403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rise of Inkanyamba</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%);
+      color: #f9fafb;
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      min-height: 100vh;
+      font-size: 0.9rem;
+    }
+    .prose p {
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .fade {
+      animation: fadeIn 1s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .glow {
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    }
+    input {
+      color: black;
+      background: rgba(255, 255, 255, 0.9);
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+    .stat-bar {
+      background: linear-gradient(90deg, #dc2626 0%, #ea580c 50%, #16a34a 100%);
+      height: 8px;
+      border-radius: 4px;
+    }
+    /* Overall screen shake on hit */
+    .screen-shake {
+      animation: screenShake 0.2s ease-out;
+    }
+    @keyframes screenShake {
+      0%, 100% { transform: translateX(0) translateY(0); }
+      25% { transform: translateX(-3px) translateY(-3px); }
+      75% { transform: translateX(3px) translateY(3px); }
+    }
+
+    /* Individual character shake on being hit */
+    .shake-animation {
+      animation: charShake 0.5s ease-in-out;
+    }
+    @keyframes charShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    /* Animations for character movement during attack */
+    @keyframes attack-move-player {
+      0% { transform: translateX(0); }
+      50% { transform: translateX(20px); } /* Move right towards enemy */
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes attack-move-enemy {
+      0% { transform: translateX(0); }
+      50% { transform: translateX(-20px); } /* Move left towards player */
+      100% { transform: translateX(0); }
+    }
+
+    .player-attacking {
+      animation: attack-move-player 0.3s ease-out;
+    }
+
+    .enemy-attacking {
+      animation: attack-move-enemy 0.3s ease-out;
+    }
+
+    /* Updated inventory item style for character sheet summary */
+    .inventory-item {
+      background: rgba(34, 197, 94, 0.1); /* Slightly lighter background */
+      border: 1px solid white; /* White border */
+      border-radius: 0; /* No rounded corners */
+      padding: 4px 8px;
+      margin: 2px;
+      display: inline-block;
+      font-size: 0.8rem;
+      box-shadow: 
+        inset 0 0 0 1px rgba(0, 0, 0, 0.2), /* Inner dark line */
+        1px 1px 0 0 rgba(0, 0, 0, 0.5); /* Smaller outer shadow for summary items */
+    }
+    .combat-char {
+      /* Adjust width/height to fit your pixel art if needed */
+      width: 180px; /* Increased size */
+      height: 180px; /* Increased size */
+      display: flex; /* Use flex to center image if it's smaller */
+      justify-content: center;
+      align-items: center;
+      overflow: hidden; /* Hide overflow if image is slightly larger than container */
+      transition: transform 0.1s ease-out;
+      /* Ensure pixel art looks sharp */
+      image-rendering: optimizeSpeed; /* Older browsers */
+      image-rendering: -moz-crisp-edges; /* Firefox */
+      image-rendering: -o-crisp-edges; /* Opera */
+      image-rendering: -webkit-optimize-contrast; /* Webkit (Chrome, Safari) */
+      image-rendering: pixelated; /* Modern browsers */
+      -ms-interpolation-mode: nearest-neighbor; /* IE */
+    }
+    .combat-char img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* Ensure image fits within the bounds */
+    }
+    .combat-char.hit {
+      filter: brightness(0.7); /* Dim slightly when hit */
+    }
+    .typing-cursor::after {
+      content: '_';
+      animation: blink-caret .75s step-end infinite;
+    }
+    @keyframes blink-caret {
+      from, to { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .hidden {
+      display: none;
+    }
+    /* New style for player emoji/image in character sheet */
+    #player-sheet-emoji {
+      width: 180px; /* Increased size */
+      height: 180px; /* Increased size */
+      margin: 0 auto 1rem auto; /* Center it */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      /* Apply pixel rendering for character sheet image too */
+      image-rendering: optimizeSpeed;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -o-crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: pixelated;
+      -ms-interpolation-mode: nearest-neighbor;
+    }
+    #player-sheet-emoji img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Inventory Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: #1a202c;
+      border: 2px solid #22c55e; /* Green border for retro feel */
+      border-radius: 8px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 700px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+      position: relative;
+    }
+
+    .modal-close-button {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 2rem;
+      color: #f9fafb;
+      cursor: pointer;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    /* Minecraft-like Inventory Grid */
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* 5 columns, adjustable size */
+      gap: 8px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3); /* Slightly darker background for the grid area */
+      border-radius: 8px;
+    }
+
+    .inventory-grid-item {
+      width: 80px;
+      height: 80px;
+      background: rgba(20, 20, 20, 0.8); /* Changed to dark background for pixelated box effect */
+      border: 2px solid white; /* White border */
+      border-radius: 0; /* Remove rounded corners for blocky look */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+      overflow: hidden; /* Ensure image fits */
+      /* Add pixelated shadow for retro feel */
+      box-shadow: 
+        inset 0 0 0 1px rgba(0, 0, 0, 0.2), /* Inner dark line */
+        2px 2px 0 0 rgba(0, 0, 0, 0.5); /* Outer shadow */
+    }
+
+    .inventory-grid-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+        2px 2px 0 0 rgba(0, 0, 0, 0.5),
+        0 4px 15px rgba(34, 197, 94, 0.4); /* Keep the glow on hover */
+    }
+
+    .inventory-grid-item img {
+      width: 85%; /* Make image slightly smaller to show border */
+      height: 85%;
+      object-fit: contain;
+      image-rendering: pixelated; /* Keep pixel art sharp */
+    }
+
+    /* New style for ancestry selection images */
+    .ancestry-char-img {
+      width: 80px; /* Smaller size for selection */
+      height: 80px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      margin-right: 10px; /* Space between image and text */
+      vertical-align: middle; /* Align with text */
+      display: inline-block; /* Allow text to flow next to it */
+    }
+  </style>
+</head>
+<body class="p-4">
+  <div class="max-w-3xl mx-auto">
+    <header class="text-center mb-6">
+      <h1 class="text-4xl mb-2 glow">🌩️ Rise of Inkanyamba ⚡</h1>
+      <p class="text-gray-400">A Tale of Ancient Powers and Shadow Beasts</p>
+    </header>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2">
+        <div id="game" class="bg-gray-800 rounded-lg p-6 space-y-4 fade min-h-96"></div>
+      </div>
+      
+      <div class="lg:col-span-1 flex flex-col gap-4">
+        <button id="inventory-button" onclick="showInventoryModal()" 
+                class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105 shadow-lg hidden">
+          🎒 Inventory
+        </button>
+        <div id="ancestry-hover-display" class="hidden flex justify-center items-center flex-grow bg-gray-800 rounded-lg p-4">
+          </div>
+        <div id="character-sheet" class="bg-gray-800 rounded-lg p-4 flex-grow hidden"> <h3 class="text-lg font-bold mb-3 text-green-400">⚔️ Character Sheet</h3>
+          <div class="space-y-3 text-sm"> <div id="player-sheet-emoji"></div> 
+            <div><strong>Name:</strong> <span id="char-name">Unknown</span></div>
+            <div><strong>Ancestry:</strong> <span id="char-ancestry">None</span></div>
+            
+            <div class="space-y-2">
+              <div>
+                <div class="flex justify-between">
+                  <span>💪 Strength</span>
+                  <span id="str-val">0</span>
+                </div>
+                <div class="bg-gray-700 rounded">
+                  <div id="str-bar" class="stat-bar" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <div>
+                <div class="flex justify-between">
+                  <span>🧠 Wisdom</span>
+                  <span id="wis-val">0</span>
+                </div>
+                <div class="bg-gray-700 rounded">
+                  <div id="wis-bar" class="stat-bar" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <div>
+                <div class="flex justify-between">
+                  <span>✨ Spirit</span>
+                  <span id="spi-val">0</span>
+                </div>
+                <div class="bg-gray-700 rounded">
+                  <div id="spi-bar" class="stat-bar" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <div>
+                <div class="flex justify-between">
+                  <span>❤️ Health</span>
+                  <span id="hp-val">10/10</span>
+                </div>
+                <div class="bg-gray-700 rounded">
+                  <div id="hp-bar" class="bg-red-600 h-2 rounded" style="width: 100%"></div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="font-bold text-yellow-400 mb-2">🎒 Inventory</h4>
+              <div id="inventory" class="text-xs">Empty</div>
+            </div>
+            
+            <div>
+              <h4 class="font-bold text-purple-400 mb-2">🔮 Status Effects</h4>
+              <div id="status-effects" class="text-xs">None</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="inventory-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <button class="modal-close-button" onclick="hideInventoryModal()">X</button>
+      <h2 class="text-2xl text-green-400 mb-4 text-center">🎒 Your Inventory 🎒</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="text-lg font-bold text-yellow-300 mb-2">Items:</h3>
+          <div id="inventory-list" class="inventory-grid">
+            </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-blue-300 mb-2">Item Details:</h3>
+          <div id="item-details" class="bg-gray-700 p-4 rounded-lg min-h-[100px]">
+            <p>Click an item on the left to see its details.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables: These need to be accessible to all functions.
+    let gameEl; 
+    let gameState = "menu"; 
+    let itemDetailsEl; // Declared globally to fix scope issue
+    const player = {
+      name: "",
+      ancestry: "",
+      stats: {
+        strength: 0,
+        wisdom: 0,
+        spirit: 0,
+        hp: 10,
+        maxHp: 10,
+        attack: 1, 
+        defense: 0
+      },
+      inventory: [],
+      statusEffects: [],
+      experience: 0,
+      level: 1,
+      completedQuests: {}, // New property to track completed quests
+      // Default player emoji, will be updated based on ancestry
+      emoji: "🫵", 
+      // Image paths for player ancestries (now using GitHub raw URLs)
+      images: {
+        "Sangoma": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/sangoma%20Gemini_Generated_Image_7ukgbq7ukgbq7ukg.png",
+        "Umkhosi Warrior": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Worior%20Gemini_Generated_Image_7ukgbo7ukgbo7ukg.png",
+        "Ghostwalker": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Ghost%20Gemini_Generated_Image_7ukgbp7ukgbp7ukg.png", 
+        "Serpent Caller": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/serpant%20caller%20Gemini_Generated_Image_7ukgbr7ukgbr7ukg.png"
+      }
+    };
+    let enemy = null; 
+    let currentLocation = ""; 
+    let typingInterval; // Variable to hold the interval ID for typing effect
+    const typingSpeed = 30; // Milliseconds per character for typing effect
+
+    // Image paths for enemies (now using GitHub raw URLs)
+    const enemyImages = {
+      "Shadow Hyena": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Shadow%20Hyena%20Gemini_Generated_Image_r9tql2r9tql2r9tq.png",
+      "Pack of Shadow Jackals": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Pack%20of%20Shadow%20Jackals%20Gemini_Generated_Image_145ly9145ly9145l.png",
+      "Thunder Eagle": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Thunder%20Eagle%20Gemini_Generated_Image_685duy685duy685d.png",
+      "Inkanyamba, The Storm Serpent": "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Inkanyamba%20Gemini_Generated_Image_oxorcpoxorcpoxor.png"
+    };
+
+    // --- Item Data ---
+    const gameItems = {
+      "Healing Herbs": {
+        description: "Common herbs with mild healing properties.",
+        effect: "Restores a small amount of HP.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Healing%20Herbs%20Gemini_Generated_Image_hc61u2hc61u2hc61.png"
+      },
+      "War Spear": {
+        description: "A sturdy spear, good for close combat.",
+        effect: "Used by Umkhosi Warriors. Enhances Strength.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/War%20Spear%20Gemini_Generated_Image_wmyjj8wmyjj8wmyj.png"
+      },
+      "Shadow Cloak": {
+        description: "A cloak woven from shadow, granting stealth and agility.",
+        effect: "Used by Ghostwalkers. Enhances Wisdom.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Shadow%20Cloak.png"
+      },
+      "Snake Charm": {
+        description: "An ancient charm that resonates with nature's spirits.",
+        effect: "Used by Serpent Callers. Enhances Spirit and Wisdom.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Snake%20Charm.png"
+      },
+      "Ancient Knowledge": {
+        description: "Fragments of forgotten lore.",
+        effect: "Increases Spirit stat.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Ancient%20Knowledge.png"
+      },
+      "Spirit Idol": {
+        description: "A small carved idol pulsing with ethereal energy.",
+        effect: "Can be used in combat to deal spiritual damage.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Spirit%20Idol.png"
+      },
+      "Shadow Fang": {
+        description: "A sharp fang from a shadow beast.",
+        effect: "Valuable loot, can be sold or used in crafting (future feature).",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Shadow%20Fang.png"
+      },
+      "Dark Essence": {
+        description: "A vial of concentrated shadow energy.",
+        effect: "Valuable loot, potentially useful for dark rituals (future feature).",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Dark%20Essence.png"
+      },
+      "Beast Claw": {
+        description: "A formidable claw from a defeated beast.",
+        effect: "Valuable loot.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Beast%20Claw.png"
+      },
+      "Mystic Bone": {
+        description: "A bone inscribed with faint mystic runes.",
+        effect: "Valuable loot, holds unknown power.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Mystic%20Bone.png"
+      },
+      "Protective Charm": {
+        description: "A charm blessed by village elders.",
+        effect: "Temporarily increases defense in combat when used.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Protective%20Charm.jpg"
+      },
+      "Lightning Rod": {
+        description: "An ornate copper rod that channels storm energy.",
+        effect: "Powerful against elemental foes in combat.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Lightning%20Rod.png"
+      },
+      "Medicinal Herbs": {
+        description: "Potent herbs for healing.",
+        effect: "Can be brewed into stronger concoctions or used to heal.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/medicinal%20herbs.png"
+      },
+      "Healing Potion": {
+        description: "A brewed potion that restores a significant amount of health.",
+        effect: "Restores a significant amount of HP when used.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Healing%20Potion.png"
+      },
+      "Ancestral Blessing": {
+        description: "A powerful blessing from the ancestors.",
+        effect: "Grants spiritual fortitude.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Ancestral%20Blessing.png"
+      },
+      "Shard of Ancient Power": {
+        description: "A glowing fragment of a long-lost artifact.",
+        effect: "Its purpose is yet unknown, but it hums with energy.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Shard%20of%20Ancient%20Power.png"
+      },
+      "Glowcap Mushroom": {
+        description: "A bioluminescent mushroom found in dark caves.",
+        effect: "Provides light and minor healing properties.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Glowcap%20Mushroom.png"
+      },
+      "Forest Berries": {
+        description: "Sweet, wild berries.",
+        effect: "Offer a small amount of sustenance and healing.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Forest%20berries.png"
+      },
+      "Dreampetal": {
+        description: "A delicate, shimmering flower.",
+        effect: "Consuming it enhances mental clarity and wisdom.",
+        imageUrl: "https://raw.githubusercontent.com/PapSmurf-design/inkanyamba-game-assets/main/Dreampetal.png"
+      }
+    };
+
+    /**
+     * Saves the current game state to localStorage.
+     */
+    function saveGame() {
+        const saveState = {
+            player: player,
+            currentLocation: currentLocation,
+            // You might want to save enemy state if combat can be paused mid-fight
+            // For now, we assume combat resets on load.
+        };
+        localStorage.setItem('inkanyambaSave', JSON.stringify(saveState));
+        console.log("Game saved!");
+    }
+
+    /**
+     * Loads the game state from localStorage.
+     * @returns {boolean} True if a game was loaded, false otherwise.
+     */
+    function loadGame() {
+        const savedState = localStorage.getItem('inkanyambaSave');
+        if (savedState) {
+            const parsedState = JSON.parse(savedState);
+            // Deep merge player object to ensure new properties like completedQuests are loaded
+            Object.assign(player, parsedState.player); 
+            // Ensure completedQuests is initialized if it wasn't in an older save
+            if (!player.completedQuests) {
+                player.completedQuests = {};
+            }
+            currentLocation = parsedState.currentLocation;
+            console.log("Game loaded!");
+            updateCharacterSheet();
+            return true;
+        }
+        console.log("No saved game found.");
+        return false;
+    }
+
+    /**
+     * Updates the character sheet displayed on the right panel.
+     */
+    function updateCharacterSheet() {
+      document.getElementById("char-name").textContent = player.name || "Unknown";
+      document.getElementById("char-ancestry").textContent = player.ancestry || "None";
+      
+      // Update player image/emoji on the character sheet
+      const playerSheetEmojiEl = document.getElementById("player-sheet-emoji");
+      // Only display image if ancestry is chosen
+      if (player.ancestry && player.images[player.ancestry]) {
+          playerSheetEmojiEl.innerHTML = `<img src="${player.images[player.ancestry]}" alt="${player.ancestry}" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`;
+      } else {
+          // Fallback to emoji if no specific image is defined for an ancestry
+          // Corrected: Use player.ancestry instead of undefined 'ancestry'
+          if (player.ancestry === "Sangoma") player.emoji = "🧘";
+          else if (player.ancestry === "Umkhosi Warrior") player.emoji = "🛡️";
+          else if (player.ancestry === "Ghostwalker") player.emoji = "�";
+          else if (player.ancestry === "Serpent Caller") player.emoji = "🐍";
+      }
+
+      document.getElementById("str-val").textContent = player.stats.strength;
+      document.getElementById("wis-val").textContent = player.stats.wisdom;
+      document.getElementById("spi-val").textContent = player.stats.spirit;
+      document.getElementById("hp-val").textContent = `${player.stats.hp}/${player.stats.maxHp}`;
+      
+      document.getElementById("str-bar").style.width = `${Math.min(player.stats.strength * 10, 100)}%`;
+      document.getElementById("wis-bar").style.width = `${Math.min(player.stats.wisdom * 10, 100)}%`;
+      document.getElementById("spi-bar").style.width = `${Math.min(player.stats.spirit * 10, 100)}%`;
+      document.getElementById("hp-bar").style.width = `${(player.stats.hp / player.stats.maxHp) * 100}%`;
+      
+      const invEl = document.getElementById("inventory");
+      if (player.inventory.length === 0) {
+        invEl.innerHTML = "Empty";
+      } else {
+        // Display inventory as simple text for the character sheet summary
+        invEl.innerHTML = player.inventory.map(item => 
+          `<span class="inventory-item">${item}</span>`
+        ).join("");
+      }
+      
+      const statusEl = document.getElementById("status-effects");
+      if (player.statusEffects.length === 0) {
+        statusEl.textContent = "None";
+      } else {
+        statusEl.innerHTML = player.statusEffects.map(effect => 
+          `<span class="inventory-item">${effect}</span>`
+        ).join("");
+      }
+    }
+
+    /**
+     * Renders game content (text, options, and optional extra HTML) to the main game area.
+     * Now uses typeText for the main narrative and displays visualContent immediately.
+     * @param {string} text - The main narrative text to display.
+     * @param {Array<Object>} options - An array of objects, each with a 'label' and 'action' for buttons.
+     * @param {string} [extra=""] - Optional additional HTML content (e.g., combat UI).
+     * @param {string} [visualContent=""] - Optional HTML for visual elements (e.g., character/enemy emojis).
+     */
+    function render(text, options = [], extra = "", visualContent = "") {
+      console.log("Rendering game content, initiating typing effect...");
+      
+      // Clear the game area and set up the structure for typing and options.
+      // Visual content and extra content (like HP bars) are rendered immediately.
+      gameEl.innerHTML = `
+        <div class="prose prose-invert max-w-none">
+          ${visualContent ? `<div class="flex justify-center items-center mb-4">${visualContent}</div>` : ''}
+          <p id="narrative-text" class="whitespace-pre-line text-lg leading-relaxed"></p>
+          <div id="extra-content-area">${extra}</div> 
+        </div>
+        <div id="options-area" class="flex flex-wrap gap-2 mt-4 hidden"></div> 
+      `;
+      updateCharacterSheet();
+
+      // Start typing the main narrative text.
+      typeText('narrative-text', text, () => {
+          // This callback function executes AFTER the typing animation is complete.
+          const optionsArea = document.getElementById('options-area');
+          if (optionsArea) {
+              // Populate and show the buttons.
+              optionsArea.innerHTML = options.map(opt => `
+                  <button onclick="${opt.action}" 
+                          ${opt.onmouseover ? `onmouseover="${opt.onmouseover}"` : ''}
+                          ${opt.onmouseout ? `onmouseout="${opt.onmouseout}"` : ''}
+                          class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg">
+                    ${opt.label}
+                  </button>
+              `).join('');
+              optionsArea.classList.remove('hidden'); // Make buttons visible.
+          }
+      });
+    }
+
+    /**
+     * Animates text appearing character by character.
+     * @param {string} targetElementId - The ID of the HTML element to type into.
+     * @param {string} fullText - The complete text string to type.
+     * @param {function} callback - A function to call once typing is complete.
+     */
+    function typeText(targetElementId, fullText, callback) {
+        const targetEl = document.getElementById(targetElementId);
+        if (!targetEl) {
+            console.error(`Target element for typing not found: ${targetElementId}`);
+            if (callback) callback(); 
+            return;
+        }
+
+        targetEl.textContent = ''; // Clear any existing text in the element.
+        targetEl.classList.add('typing-cursor'); // Add typing cursor.
+        let charIndex = 0;
+
+        // Clear any previous typing interval to prevent overlapping animations.
+        if (typingInterval) {
+            clearInterval(typingInterval); 
+        }
+
+        typingInterval = setInterval(() => {
+            if (charIndex < fullText.length) {
+                targetEl.textContent += fullText.charAt(charIndex);
+                charIndex++;
+            } else {
+                clearInterval(typingInterval); // Stop the interval when text is fully typed.
+                typingInterval = null; // Reset interval ID.
+                targetEl.classList.remove('typing-cursor'); // Remove typing cursor.
+                if (callback) callback(); // Execute the callback function.
+            }
+        }, typingSpeed);
+    }
+
+    /**
+     * Performs a skill check based on a player's stat and a difficulty.
+     * Replaces explicit dice rolls with a more abstract chance.
+     * @param {number} statValue - The player's relevant stat (e.g., player.stats.wisdom).
+     * @param {number} difficulty - A number representing the difficulty (higher means harder).
+     * @returns {boolean} True for success, false for failure.
+     */
+    function performSkillCheck(statValue, difficulty) {
+        // Base success chance (e.g., 30%) + bonus from stat.
+        // Adjust multiplier (e.g., 0.05) to balance how much each stat point helps.
+        // Adjust base chance (e.g., 0.3) for overall difficulty.
+        const successChance = 0.3 + (statValue * 0.07) - (difficulty * 0.02); // Example formula
+        console.log(`Skill check: Stat ${statValue}, Difficulty ${difficulty}. Chance: ${Math.round(successChance * 100)}%`);
+        return Math.random() < successChance;
+    }
+
+    /**
+     * Provides visual feedback for certain game events (e.g., combat).
+     * Now applies to specific character elements and triggers screen shake.
+     * @param {string} targetId - The ID of the HTML element to animate (e.g., 'player-char', 'enemy-char').
+     */
+    function playHitAnimation(targetId) {
+      const targetEl = document.getElementById(targetId);
+      const gameContainer = document.getElementById('game'); // The main game area
+
+      if (targetEl) {
+        targetEl.classList.add("shake-animation");
+        targetEl.classList.add("hit"); 
+        setTimeout(() => {
+          targetEl.classList.remove("shake-animation");
+          targetEl.classList.remove("hit");
+        }, 500);
+      }
+
+      // Trigger screen shake on any hit
+      if (gameContainer) {
+        gameContainer.classList.add("screen-shake");
+        setTimeout(() => {
+          gameContainer.classList.remove("screen-shake");
+        }, 200); // Shorter duration for screen shake
+      }
+    }
+
+    /**
+     * Initializes and starts the game from the beginning or loads a saved game.
+     */
+    function startGame() {
+      console.log("Starting game...");
+      // Always start a new game on initial launch.
+      // The "Continue Last Game" option is now only presented after defeat.
+      startNewGame(); 
+    }
+
+    /**
+     * Resumes the game from the last saved checkpoint.
+     */
+    function resumeGame() {
+        if (loadGame()) {
+            // Based on currentLocation, jump to the appropriate game state/function
+            if (currentLocation === "shrine") {
+                examineShrine();
+            } else if (currentLocation === "winds") {
+                goWinds();
+            } else if (currentLocation === "shrine_explored") {
+                exploreShrine();
+            } else if (currentLocation === "village") {
+                goVillage();
+            } else if (currentLocation === "forest") {
+                goForest();
+            } else if (currentLocation === "mountains") {
+                goMountains();
+            } else {
+                // Default to continue journey if location is not specific
+                continueJourney();
+            }
+            document.getElementById('inventory-button').classList.remove('hidden');
+            document.getElementById('character-sheet').classList.remove('hidden'); // Show character sheet on resume
+        } else {
+            // Fallback if loadGame somehow fails (e.g., save corrupted or deleted externally)
+            startNewGame();
+        }
+    }
+
+    /**
+     * Starts a brand new game, resetting all player data.
+     */
+    function startNewGame() {
+        // Reset player stats to initial values.
+        player.name = "";
+        player.ancestry = "";
+        player.stats = { strength: 0, wisdom: 0, spirit: 0, hp: 10, maxHp: 10, attack: 1, defense: 0 };
+        player.inventory = [];
+        player.statusEffects = [];
+        player.experience = 0;
+        player.level = 1;
+        player.completedQuests = {}; // Reset completed quests for a new game
+        enemy = null; 
+        gameState = "intro"; 
+        currentLocation = ""; // Reset location for new game
+
+        // Clear player image on character sheet when starting new game
+        document.getElementById("player-sheet-emoji").innerHTML = '';
+        // Hide character sheet at start
+        document.getElementById('character-sheet').classList.add('hidden');
+        // Hide inventory button at start
+        document.getElementById('inventory-button').classList.add('hidden');
+        // Ensure hover display is hidden at start
+        document.getElementById('ancestry-hover-display').classList.add('hidden');
+
+
+        // Render the initial game introduction.
+        render(`🌙 **The Ancient Awakening** 🌙
+
+You awaken beneath the shattered bones of an ancestral shrine, moonlight filtering through twisted acacia branches. The wind carries whispers of your name—a name you cannot yet remember.
+
+Thunder rumbles in the distance. The legendary Inkanyamba stirs, and with it, the balance between worlds trembles.
+
+Your journey begins now, child of the ancestors.`, [
+            { label: "🚶 Begin your journey", action: "enterName()" }
+        ]);
+    }
+
+    /**
+     * Prompts the player to enter their character's name.
+     */
+    function enterName() {
+      console.log("enterName() called: Preparing to render name input...");
+      // Use render to set up the basic structure, then fill in the input and button
+      render(`The spirits whisper, asking for your true name...`, [
+          { label: "Continue →", action: "chooseAncestry()" }
+      ], `<input id="nameInput" class="flex-1 p-3 rounded-lg text-black font-sans" placeholder="Enter your name, wanderer..." />`);
+      
+      // After rendering, ensure the input is focused for immediate typing
+      const nameInput = document.getElementById("nameInput");
+      if (nameInput) {
+          nameInput.focus();
+      }
+      console.log("enterName(): gameEl.innerHTML updated successfully.");
+      updateCharacterSheet(); 
+      console.log("enterName(): updateCharacterSheet() called.");
+    }
+
+    /**
+     * Allows the player to choose their ancestry, which affects starting stats and items.
+     */
+    function chooseAncestry() {
+      player.name = document.getElementById("nameInput").value || "Nameless One";
+      const text = `🌟 **Welcome, ${player.name}** 🌟
+
+The ancestors recognize you. From which lineage do you draw your power?
+
+Choose wisely—your ancestry will shape your destiny and abilities.`;
+
+      const options = [
+          { label: "🩺 Sangoma (Healer)", action: "setAncestry('Sangoma')", onmouseover: "displayHoverCharacter('Sangoma')", onmouseout: "hideHoverCharacter()" },
+          { label: "⚔️ Umkhosi Warrior", action: "setAncestry('Umkhosi Warrior')", onmouseover: "displayHoverCharacter('Umkhosi Warrior')", onmouseout: "hideHoverCharacter()" },
+          { label: "👻 Ghostwalker (Scout)", action: "setAncestry('Ghostwalker')", onmouseover: "displayHoverCharacter('Ghostwalker')", onmouseout: "hideHoverCharacter()" },
+          { label: "🐍 Serpent Caller", action: "setAncestry('Serpent Caller')", onmouseover: "displayHoverCharacter('Serpent Caller')", onmouseout: "hideHoverCharacter()" }
+      ];
+
+      render(text, options);
+    }
+
+    /**
+     * Displays a large character image in the side panel when hovering over an ancestry option.
+     * @param {string} ancestry - The ancestry name (e.g., "Sangoma").
+     */
+    function displayHoverCharacter(ancestry) {
+        const hoverDisplayEl = document.getElementById('ancestry-hover-display');
+        const characterSheetEl = document.getElementById('character-sheet');
+        if (hoverDisplayEl && characterSheetEl) {
+            characterSheetEl.classList.add('hidden'); // Hide character sheet
+            hoverDisplayEl.classList.remove('hidden'); // Show hover display
+            // Ensure the image takes up the space
+            hoverDisplayEl.innerHTML = `<img src="${player.images[ancestry]}" alt="${ancestry}" class="w-full h-full object-contain image-rendering-pixelated" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`;
+        }
+    }
+
+    /**
+     * Hides the large character image from the side panel when no ancestry option is hovered.
+     */
+    function hideHoverCharacter() {
+        const hoverDisplayEl = document.getElementById('ancestry-hover-display');
+        if (hoverDisplayEl) {
+            hoverDisplayEl.classList.add('hidden'); // Hide hover display
+            hoverDisplayEl.innerHTML = ''; // Clear image
+        }
+    }
+
+    /**
+     * Sets the player's ancestry and applies associated stat bonuses and starting inventory.
+     */
+    function setAncestry(ancestry) {
+      player.ancestry = ancestry;
+      // Set player emoji/image based on ancestry for visual flair
+      if (player.ancestry && player.images[player.ancestry]) {
+          player.emoji = `<img src="${player.images[player.ancestry]}" alt="${player.ancestry}" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`;
+      } else {
+          // Fallback to emoji if no specific image is defined for an ancestry
+          // Corrected: Use player.ancestry instead of undefined 'ancestry'
+          if (player.ancestry === "Sangoma") player.emoji = "🧘";
+          else if (player.ancestry === "Umkhosi Warrior") player.emoji = "🛡️";
+          else if (player.ancestry === "Ghostwalker") player.emoji = "👤";
+          else if (player.ancestry === "Serpent Caller") player.emoji = "🐍";
+      }
+
+      // Apply initial stats and items based on ancestry
+      if (ancestry === "Sangoma") {
+        player.stats.spirit = 5;
+        player.stats.wisdom = 4;
+        player.inventory.push("Healing Herbs");
+      } else if (ancestry === "Umkhosi Warrior") {
+        player.stats.strength = 6;
+        player.stats.maxHp = 12;
+        player.stats.hp = 12;
+        player.inventory.push("War Spear");
+      } else if (ancestry === "Ghostwalker") {
+        player.stats.wisdom = 5;
+        player.stats.strength = 2;
+        player.inventory.push("Shadow Cloak");
+      } else if (ancestry === "Serpent Caller") {
+        player.stats.spirit = 3;
+        player.stats.wisdom = 3;
+        player.stats.strength = 1;
+        player.inventory.push("Snake Charm");
+      }
+      
+      // Show inventory button after ancestry is set
+      document.getElementById('inventory-button').classList.remove('hidden');
+      // Show character sheet and hide hover display
+      document.getElementById('character-sheet').classList.remove('hidden');
+      document.getElementById('ancestry-hover-display').classList.add('hidden');
+
+      saveGame(); // Checkpoint after ancestry selection
+
+      currentLocation = "shrine"; 
+      render(`⚡ **${player.name}, the ${player.ancestry}** ⚡
+
+Power courses through your veins as you remember your heritage. Dark clouds gather overhead, and the air crackles with supernatural energy.
+
+A shadow falls across the land—something ancient and terrible stirs. What will you do?`, [
+        { label: "🏛️ Explore the shrine ruins", action: "examineShrine()" }, 
+        { label: "🌪️ Head toward the howling winds", action: "goWinds()" }
+      ]);
+    }
+
+    /**
+     * Allows the player to examine the shrine more closely, leading to different options.
+     */
+    function examineShrine() {
+      render(`🔍 **Examining the Ancient Shrine** 🔍
+
+You study the ruins more carefully. Carved bones form intricate patterns—protection wards, you realize. Some are cracked, their power fading.
+
+Ancient symbols glow faintly on a nearby stone tablet. Your ${player.ancestry} heritage helps you understand some of the meaning.`, [
+          { label: player.completedQuests.readTablet ? "📜 Tablet already studied" : "📜 Try to read the tablet", action: "readTablet()" },
+          { label: player.completedQuests.exploreShrine ? "🏛️ Ruins already searched" : "🏛️ Search the ruins thoroughly", action: "exploreShrine()" },
+          { label: "🌪️ Leave for the winds", action: "goWinds()" }
+      ]);
+    }
+
+    /**
+     * Attempts to read an ancient tablet, with success depending on Wisdom.
+     */
+    function readTablet() {
+      if (player.completedQuests.readTablet) {
+        render(`📜 **You've already studied this tablet.** Its wisdom has been absorbed.`, [
+          { label: "🏛️ Search the ruins instead", action: "exploreShrine()" },
+          { label: "🌪️ Head to the winds", action: "goWinds()" }
+        ]);
+        return;
+      }
+
+      const success = performSkillCheck(player.stats.wisdom, 8); // Difficulty 8 for reading tablet.
+      
+      if (success) {
+        player.stats.spirit += 2; 
+        player.inventory.push("Ancient Knowledge");
+        player.completedQuests.readTablet = true; // Mark as completed
+        saveGame(); // Save after completion
+        render(`📜 **Ancient Wisdom Unlocked** 📜
+
+You successfully decipher the ancient text!
+
+"When shadow meets lightning, the Inkanyamba rises. Only those who understand balance can hope to command the storm."
+
+Your spirit grows stronger from this knowledge. (+2 Spirit)`, [
+            { label: "Continue exploring shrine", action: "examineShrine()" } // Go back to shrine options
+        ]);
+      } else {
+        render(`📜 **Mystery Remains** 📜
+
+The symbols remain largely incomprehensible. The ancient language is too complex for you to fully understand right now.
+
+Perhaps you'll return when you're wiser.`, [
+            { label: "🏛️ Search the ruins instead", action: "exploreShrine()" },
+            { label: "🌪️ Head to the winds", action: "goWinds()" }
+        ]);
+      }
+    }
+
+    /**
+     * Explores the shrine ruins, granting a Spirit bonus and an item.
+     */
+    function exploreShrine() {
+      if (player.completedQuests.exploreShrine) {
+        render(`🏛️ **You've already thoroughly searched these ruins.** There's nothing new to find here.`, [
+          { label: "📜 Check the tablet again", action: "readTablet()" },
+          { label: "🌪️ Head to the winds", action: "goWinds()" }
+        ]);
+        return;
+      }
+
+      player.stats.spirit += 1; 
+      player.inventory.push("Spirit Idol"); 
+      currentLocation = "shrine_explored"; 
+      player.completedQuests.exploreShrine = true; // Mark as completed
+      saveGame(); // Checkpoint after exploring shrine
+      
+      render(`🏛️ **Shrine Exploration** 🏛️
+
+You carefully search through the bone fragments and find a small carved idol pulsing with ethereal energy. As you touch it, warmth spreads through your body.
+
+The spirit of your ancestors whispers approval. Your spiritual connection grows stronger. (+1 Spirit)
+
+In the distance, you hear the growl of something hunting.`, [
+        { label: "⚔️ Prepare for danger", action: "firstCombatEncounter()" }
+      ]);
+    }
+
+    /**
+     * Leads the player to the "howling winds" area, initiating a combat encounter.
+     */
+    function goWinds() {
+      currentLocation = "winds"; 
+      saveGame(); // Checkpoint before going to winds
+      render(`🌪️ **Into the Howling Winds** 🌪️
+
+You push through tall reeds and swirling mist. The wind carries strange scents—blood, fear, and something wild. Your skin prickles with anticipation.
+
+A beast howls in the distance, closer than before. Yellow eyes gleam through the mist.
+
+Your journey into danger begins.`, [
+        { label: "⚔️ Face what comes", action: "firstCombatEncounter()" }
+      ]);
+    }
+
+    /**
+     * Sets up the first combat encounter with a Shadow Hyena.
+     */
+    function firstCombatEncounter() {
+      enemy = {
+        name: "Shadow Hyena",
+        hp: 8,
+        maxHp: 8,
+        attack: 3,
+        description: "A hyena possessed by dark spirits, its eyes glowing with malevolent energy.",
+        emoji: `<img src="${enemyImages["Shadow Hyena"]}" alt="Shadow Hyena" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`
+      };
+      gameState = "combat"; 
+      combatEncounter(); 
+    }
+
+    /**
+     * Displays the current combat situation, including player and enemy HP, and combat options.
+     */
+    function combatEncounter() {
+      const visualContent = `
+        <div id="player-char" class="combat-char">${player.emoji}</div>
+        <div class="text-4xl mx-4">VS</div>
+        <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+      `;
+      render(`⚔️ **COMBAT: ${enemy.name}** ⚔️
+
+${enemy.description || "A fearsome opponent blocks your path!"}
+
+The air crackles with tension as you prepare to fight.`, [
+          { label: "⚔️ Attack", action: "playerAttack()" },
+          { label: "🛡️ Dodge", action: "attemptDodge()" },
+          { label: "🎒 Use Item", action: "useItem()" }
+      ],
+      `<div class="bg-red-900 rounded-lg p-3 mt-4">
+          <div class="flex justify-between text-sm mb-2">
+            <span>🫵 Your HP: ${player.stats.hp}/${player.stats.maxHp}</span>
+            <span>👹 ${enemy.name} HP: ${enemy.hp}/${enemy.maxHp}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-gray-700 rounded"><div class="bg-red-600 h-2 rounded" style="width: ${(player.stats.hp/player.stats.maxHp)*100}%"></div></div>
+            <div class="bg-gray-700 rounded"><div class="bg-orange-600 h-2 rounded" style="width: ${(enemy.hp/enemy.maxHp)*100}%"></div></div>
+          </div>
+      </div>`, visualContent);
+    }
+
+    /**
+     * Handles the player's attack action during combat.
+     */
+    function playerAttack() {
+      const playerCharEl = document.getElementById('player-char');
+      if (playerCharEl) playerCharEl.classList.add('player-attacking');
+
+      const attackSuccess = performSkillCheck(player.stats.strength + player.stats.attack, 7);
+      let damage = 0;
+      let resultText = "";
+
+      setTimeout(() => { // Delay to allow attack animation to play
+        if (playerCharEl) playerCharEl.classList.remove('player-attacking');
+
+        if (attackSuccess) {
+          damage = Math.floor(Math.random() * 3) + player.stats.strength + player.stats.attack;
+          if (Math.random() < 0.2) {
+              damage *= 2;
+              resultText = `💥 You land a CRITICAL STRIKE on the ${enemy.name} for ${damage} damage!`;
+          } else {
+              resultText = `⚔️ You strike the ${enemy.name} for ${damage} damage!`;
+          }
+          enemy.hp -= damage;
+          playHitAnimation('enemy-char'); // Animate enemy being hit and screen shake
+        } else {
+          resultText = `💨 You attempt to strike, but the ${enemy.name} deftly avoids your attack!`;
+        }
+
+        if (enemy.hp <= 0) {
+          player.experience += 10;
+          checkLevelUp(); 
+          render(`${resultText}\n\n🏆 **Victory!** 🏆\n\nYou defeated the ${enemy.name}! The beast falls to the ground, its spirit energy dissipating into the wind.\n\n+10 Experience`, [
+            { label: "🎒 Loot the body", action: "lootEnemy()" },
+            { label: "➡️ Continue journey", action: "continueJourney()" }
+          ]);
+        } else {
+          enemyAttack(resultText);
+        }
+      }, 300); // Match this delay to the attack-move-player animation duration
+    }
+
+    /**
+     * Checks if the player has enough experience to level up.
+     */
+    function checkLevelUp() {
+      const expNeeded = player.level * 25; 
+      if (player.experience >= expNeeded) {
+        player.level++;
+        player.experience -= expNeeded; 
+        player.stats.maxHp += 2; 
+        player.stats.hp = player.stats.maxHp; 
+        player.statusEffects.push(`Level ${player.level}`); 
+        
+        render(`🌟 **LEVEL UP!** 🌟\n\nYou have reached Level ${player.level}!\n+2 Max HP, Full Heal`, [
+          { label: "Continue", action: "combatEncounter()" } 
+        ]);
+        return true;
+      }
+      return false;
+    }
+
+    /**
+     * Handles the enemy's attack action during combat.
+     */
+    function enemyAttack(previous) {
+      const enemyCharEl = document.getElementById('enemy-char');
+      if (enemyCharEl) enemyCharEl.classList.add('enemy-attacking');
+
+      setTimeout(() => { // Delay to allow attack animation to play
+        if (enemyCharEl) enemyCharEl.classList.remove('enemy-attacking');
+
+        const damage = Math.max(1, Math.floor(Math.random() * enemy.attack) + 1 - player.stats.defense);
+        player.stats.hp -= damage; 
+        playHitAnimation('player-char'); // Animate player being hit and screen shake
+        
+        if (player.stats.hp <= 0) {
+          player.stats.hp = 0; 
+          render(`${previous}\n\n💀 **DEFEAT** 💀\n\nThe ${enemy.name} strikes back for ${damage} damage. Darkness closes in around you as you fall...\n\nBut the ancestors are not done with you yet.`, [
+            { label: "🔄 Rise again (from last checkpoint)", action: "resumeGame()" },
+            { label: "🔄 Start a New Game", action: "startNewGame()" }
+          ]);
+        } else {
+          render(`${previous}\n\n💥 The ${enemy.name} retaliates for ${damage} damage!`, [
+            { label: "⚔️ Attack again", action: "playerAttack()" },
+            { label: "🛡️ Try to dodge", action: "attemptDodge()" },
+            { label: "🎒 Use Item", action: "useItem()" }
+          ],
+          `<div class="bg-red-900 rounded-lg p-3 mt-4">
+            <div class="flex justify-between text-sm mb-2">
+              <span>🫵 Your HP: ${player.stats.hp}/${player.stats.maxHp}</span>
+              <span>👹 ${enemy.name} HP: ${enemy.hp}/${enemy.maxHp}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-gray-700 rounded"><div class="bg-red-600 h-2 rounded" style="width: ${(player.stats.hp/player.stats.maxHp)*100}%"></div></div>
+              <div class="bg-gray-700 rounded"><div class="bg-orange-600 h-2 rounded" style="width: ${(enemy.hp/enemy.maxHp)*100}%"></div></div>
+            </div>
+          </div>`, 
+          `<div id="player-char" class="combat-char">${player.emoji}</div>
+           <div class="text-4xl mx-4">VS</div>
+           <div id="enemy-char" class="combat-char">${enemy.emoji}</div>`
+          );
+        }
+      }, 300); // Match this delay to the attack-move-enemy animation duration
+    }
+
+    /**
+     * Handles the player's attempt to dodge an enemy attack.
+     */
+    function attemptDodge() {
+      const dodgeSuccess = performSkillCheck(player.stats.wisdom + player.stats.defense, 10); // Wisdom + defense for dodging.
+      
+      if (dodgeSuccess) {
+        render(`🌪️ **Dodge Successful** 🌪️\n\nYou gracefully evade the ${enemy.name}'s attack! Your ${player.ancestry} training serves you well.`, [
+          { label: "⚔️ Counterattack", action: "playerAttack()" },
+          { label: "🎒 Use Item", action: "useItem()" }
+        ], '', 
+        `<div id="player-char" class="combat-char">${player.emoji}</div>
+         <div class="text-4xl mx-4">VS</div>
+         <div id="enemy-char" class="combat-char">${enemy.emoji}</div>`
+        );
+      } else {
+        enemyAttack(`🌪️ You fail to dodge in time!`);
+      }
+    }
+
+    /**
+     * Displays a list of usable items from the player's inventory during combat.
+     */
+    function useItem() {
+      const usableItems = player.inventory.filter(item => 
+        item === "Healing Herbs" || item === "Spirit Idol" || item === "Protective Charm" || item === "Healing Potion" || item === "Lightning Rod" || item === "Forest Berries" || item === "Dreampetal"
+      );
+      
+      if (usableItems.length === 0) {
+        render(`🎒 You have no usable items in combat.`, [
+          { label: "⚔️ Attack instead", action: "playerAttack()" },
+          { label: "🛡️ Dodge instead", action: "attemptDodge()" }
+        ]);
+        return;
+      }
+      
+      let itemOptions = usableItems.map(item => ({
+        label: `Use ${item}`,
+        action: `useSpecificItem('${item}')`
+      }));
+      
+      render(`🎒 **Choose an item to use:**`, itemOptions.concat([
+        { label: "🔙 Back to combat", action: "combatEncounter()" }
+      ]));
+    }
+
+    /**
+     * Uses a specific item from the player's inventory during combat.
+     */
+    function useSpecificItem(item) {
+      const itemIndex = player.inventory.indexOf(item); 
+
+      if (itemIndex === -1) {
+          render(`❌ You don't have that item.`, [{ label: "Try again", action: "useItem()" }]);
+          return;
+      }
+
+      let itemEffectText = "";
+      let continueAction = "combatEncounter()"; // Default action after using item
+
+      if (item === "Healing Herbs") {
+        player.inventory.splice(itemIndex, 1); 
+        const healing = 4 + player.stats.spirit;
+        player.stats.hp = Math.min(player.stats.hp + healing, player.stats.maxHp);
+        itemEffectText = `🌿 You use your Healing Herbs and recover ${healing} HP!`;
+      } else if (item === "Healing Potion") {
+          player.inventory.splice(itemIndex, 1); 
+          const healing = 8 + player.stats.spirit; 
+          player.stats.hp = Math.min(player.stats.hp + healing, player.stats.maxHp);
+          itemEffectText = `🧪 You drink the Healing Potion and feel a significant surge of health! (+${healing} HP)`;
+      } else if (item === "Spirit Idol") {
+        player.inventory.splice(itemIndex, 1); 
+        const damage = 6 + player.stats.spirit; 
+        enemy.hp -= damage;
+        playHitAnimation('enemy-char');
+        itemEffectText = `✨ The Spirit Idol unleashes powerful energy, dealing ${damage} damage!`;
+        if (enemy.hp <= 0) {
+            player.experience += 10;
+            checkLevelUp();
+            itemEffectText += `\n\n${enemy.name} defeated!`;
+            continueAction = "lootEnemy()";
+        }
+      } else if (item === "Protective Charm") {
+          player.inventory.splice(itemIndex, 1); 
+          player.statusEffects.push("Charmed (Def)"); 
+          player.stats.defense += 2; // Temporary defense boost
+          itemEffectText = `🛡️ You activate the Protective Charm! Your defenses temporarily increase.`;
+          // Add a mechanism to remove this effect after combat or a few turns
+      } else if (item === "Lightning Rod") {
+          player.inventory.splice(itemIndex, 1); 
+          const damage = 10 + player.stats.spirit * 2; 
+          enemy.hp -= damage;
+          playHitAnimation('enemy-char');
+          itemEffectText = `🌩️ You use the Lightning Rod, channeling a powerful bolt that strikes the ${enemy.name}, dealing ${damage} damage!`;
+          if (enemy.hp <= 0) {
+              player.experience += 10;
+              checkLevelUp();
+              itemEffectText += `\n\n${enemy.name} defeated!`;
+              continueAction = "lootEnemy()";
+          }
+      } else if (item === "Forest Berries") {
+          player.inventory.splice(itemIndex, 1);
+          player.stats.hp = Math.min(player.stats.hp + 3, player.stats.maxHp);
+          itemEffectText = `🍓 You eat the Forest Berries and feel a slight rejuvenation. (+3 HP)`;
+      } else if (item === "Dreampetal") {
+          player.inventory.splice(itemIndex, 1);
+          player.statusEffects.push("Inspired"); // Could give a temporary wisdom/spirit boost
+          player.stats.wisdom += 1;
+          itemEffectText = `🌸 You consume the Dreampetal. Your mind feels clearer. (+1 Wisdom)`;
+          // Add a mechanism to remove this effect
+      }
+      
+      render(itemEffectText, [
+        { label: "Continue", action: continueAction }
+      ], '', 
+      `<div id="player-char" class="combat-char">${player.emoji}</div>
+       <div class="text-4xl mx-4">VS</div>
+       <div id="enemy-char" class="combat-char">${enemy.emoji}</div>`
+      );
+
+      // If enemy was defeated by item, transition directly to loot/continue
+      if (enemy.hp <= 0 && continueAction === "lootEnemy()") {
+          // This path is already handled by the render call above.
+      } else if (gameState === "combat") {
+          // If still in combat, enemy attacks after player uses item
+          if (enemy.hp > 0) {
+             // Delay enemy attack slightly to show item effect
+             setTimeout(() => enemyAttack(itemEffectText), 700);
+          }
+      }
+    }
+
+    /**
+     * Handles looting an enemy after combat, adding a random item to inventory.
+     */
+    function lootEnemy() {
+      const loot = ["Shadow Fang", "Dark Essence", "Beast Claw", "Mystic Bone"];
+      const randomLoot = loot[Math.floor(Math.random() * loot.length)]; 
+      player.inventory.push(randomLoot); 
+      saveGame(); // Checkpoint after looting
+      
+      render(`🎒 **Loot Acquired** 🎒\n\nYou search the ${enemy.name}'s remains and find a valuable ${randomLoot}.`, [
+        { label: "➡️ Continue your journey", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Presents the player with branching path options after initial encounters.
+     */
+    function continueJourney() {
+      gameState = "exploration"; 
+      saveGame(); // Checkpoint at crossroads
+      render(`🗺️ **The Path Ahead** 🗺️\n\nYou stand at a crossroads beneath storm clouds. Lightning flickers in the distance—a sign of the Inkanyamba's growing power.\n\nTo your left, the Umgeni River whispers ancient secrets. To your right, the Drakensberg Forest 🌲 looms dark and mysterious.\n\nWhere will your destiny lead you, ${player.name}?`, [
+        { label: "🏘️ Follow the river to the village", action: "goVillage()" },
+        { label: "🌲 Venture into the dark forest", action: "goForest()" },
+        { label: "⛰️ Climb toward the mountains", action: "goMountains()" }
+      ]);
+    }
+
+    /**
+     * Leads the player to the Village of Emakhaya and introduces the Elder.
+     */
+    function goVillage() {
+      currentLocation = "village"; 
+      saveGame(); // Checkpoint at village entrance
+      render(`🏘️ **The Village of Emakhaya** 🏘️\n\nSmoke rises from round huts with thatched roofs. The sound of drums echoes softly through the settlement, mixing with children's laughter and the crackle of cooking fires.\n\nAn elderly woman with wise eyes approaches, her staff clicking against the ground. Bone ornaments chime softly around her neck.\n\n"The spirits told us of your coming, ${player.name}."`, [
+        { label: "🗣️ Greet the elder respectfully", action: "talkElder()" },
+        { label: "🏘️ Explore the village first", action: "exploreVillage()" },
+        { label: "❓ Ask about the Inkanyamba", action: "askAboutInkanyamba()" }
+      ]);
+    }
+
+    /**
+     * Allows the player to ask the Elder about the Inkanyamba.
+     */
+    function askAboutInkanyamba() {
+      render(`👵 **The Elder's Warning** 👵\n\n"Ah, you seek knowledge of the great storm serpent. The Inkanyamba has slumbered for generations, but now it stirs."\n\nHer eyes grow distant. "Long ago, my grandmother's grandmother spoke of the last rising. Rivers turned to blood, the sky raged for seven days, and only a chosen one could calm the storm."\n\n"Tell me, young ${player.ancestry}, do you carry the mark of destiny?"`, [
+        { label: player.completedQuests.showHeritage ? "✋ Heritage already shown" : "✋ Show your heritage", action: "showHeritage()" },
+        { label: "❓ Ask about the mark", action: "askAboutMark()" },
+        { label: "🗣️ Speak with elder more", action: "talkElder()" }
+      ]);
+    }
+
+    /**
+     * Attempts to show ancestral heritage to the Elder, potentially gaining the "Marked by Destiny" status.
+     */
+    function showHeritage() {
+      if (player.completedQuests.showHeritage) {
+        render(`✨ **You've already shown your heritage to the Elder.** She acknowledges your power.`, [
+          { label: "🗣️ Continue speaking", action: "talkElder()" }
+        ]);
+        return;
+      }
+
+      const success = performSkillCheck(player.stats.spirit, 7); // Spirit check.
+      
+      if (success) {
+        player.statusEffects.push("Marked by Destiny"); 
+        player.stats.spirit += 2; 
+        player.completedQuests.showHeritage = true; // Mark as completed
+        saveGame(); // Checkpoint after gaining Mark of Destiny
+        render(`✨ **Recognition of Power** ✨\n\nYou successfully channel your ancestral power. The elder's eyes widen as spiritual energy swirls around you.\n\n"Yes... you bear the mark! The ancestors have chosen well. Here, take this."\n\nShe hands you an ancient amulet that pulses with power. (+2 Spirit)`, [
+          { label: "🙏 Thank the elder", action: "talkElder()" }
+        ], `<p class="text-green-400 font-bold">⚡ You have been marked by destiny!</p>`);
+      } else {
+        render(`✋ You attempt to show your power, but the display is weak. The elder looks disappointed.\n\n"Perhaps you are not yet ready. Grow stronger, and return to me."`, [
+          { label: "🗣️ Continue speaking", action: "talkElder()" }
+        ]);
+      }
+    }
+
+    /**
+     * Asks the Elder for more information about the "mark of destiny."
+     */
+    function askAboutMark() {
+      render(`👵 "The mark is not something you can see with your eyes, child. It is a resonance with the storm itself—the ability to command lightning and speak with the wind."\n\n"Only those with this gift can hope to face the Inkanyamba without being consumed by its rage."`, [
+        { label: player.completedQuests.showHeritage ? "✋ Heritage already shown" : "✋ Try to show your power", action: "showHeritage()" },
+        { label: "🗣️ Continue conversation", action: "talkElder()" }
+      ]);
+    }
+
+    /**
+     * Main dialogue function for interacting with the Village Elder.
+     */
+    function talkElder() {
+      render(`👵 **The Village Elder** 👵\n\n"Welcome, ${player.name}. I am Nomsa, keeper of old stories and guardian of this village. Dark times approach—our scouts report strange storms gathering, and the animals flee southward."\n\nShe leans on her staff, studying you carefully.\n\n"Will you help us prepare for what's coming? There are tasks that need a warrior's strength."`, [
+        { label: player.completedQuests.villageTasksAccepted ? "✅ Village tasks accepted" : "✅ Accept the village's call", action: "acceptVillageTask()" },
+        { label: "❌ Politely decline", action: "declineVillageTask()" },
+        { label: "❓ Ask about the storms", action: "askAboutStorms()" }
+      ]);
+    }
+
+    /**
+     * Asks the Elder about the strange storms.
+     */
+    function askAboutStorms() {
+      render(`👵 **Elder's Prophecy** 👵\n\n"The storms are not natural, child. They spiral inward, toward the sacred mountain where the Inkanyamba once dwelt. Lightning strikes the same places repeatedly, and the thunder... it sounds like a great serpent's roar."\n\nShe shivers despite the warm air.\n\n"Our people are afraid. Some speak of leaving, but this is our ancestral home. We need someone with your gifts to investigate."`, [
+        { label: player.completedQuests.villageTasksAccepted ? "✅ Already helping village" : "✅ I will help investigate", action: "acceptVillageTask()" },
+        { label: player.completedQuests.mountainQuestAccepted ? "⛰️ Mountain quest accepted" : "⛰️ Tell me about the mountain", action: "askAboutMountain()" },
+        { label: "🏘️ Let me explore first", action: "exploreVillage()" }
+      ]);
+    }
+
+    /**
+     * Asks the Elder about Kwantu Peak, the sacred mountain.
+     */
+    function askAboutMountain() {
+      render(`👵 **The Sacred Mountain** 👵\n\n"Kwantu Peak—the Place of Thunder. Legend says it's where the first shamans learned to speak with lightning. Deep caves honeycomb its slopes, and at its heart lies the Thunder Chamber."\n\nHer voice drops to a whisper.\n\n"That's where the Inkanyamba sleeps... or slept. The caves are dangerous even in peaceful times. Now, with the serpent stirring..." She shakes her head.`, [
+        { label: player.completedQuests.mountainQuestAccepted ? "✅ Already committed to mountain" : "✅ I must go there", action: "acceptMountainQuest()" },
+        { label: "🗣️ Continue talking", action: "talkElder()" }
+      ]);
+    }
+
+    /**
+     * Accepts the quest to go to the mountain, gaining a Lightning Rod.
+     */
+    function acceptMountainQuest() {
+      if (player.completedQuests.mountainQuestAccepted) {
+        render(`👵 **You've already accepted the quest to the mountain.** Focus on preparing the village.`, [
+          { label: "✅ Help the village", action: "acceptVillageTask()" }
+        ]);
+        return;
+      }
+
+      player.statusEffects.push("Mountain Bound"); 
+      player.inventory.push("Lightning Rod"); 
+      player.completedQuests.mountainQuestAccepted = true; // Mark as completed
+      saveGame(); // Checkpoint after accepting mountain quest
+      render(`👵 **The Mountain Quest** 👵\n\n"You are brave, ${player.name}. Take this—a lightning rod forged by our ancestors. It may protect you from the worst of the storm's fury."\n\nShe hands you an ornate copper rod crackling with residual energy.\n\n"But first, help us prepare the village. We must be strong for what's coming."`, [
+        { label: "✅ Help the village", action: "acceptVillageTask()" }
+      ]);
+    }
+
+    /**
+     * Accepts tasks to help the village, gaining a Protective Charm.
+     */
+    function acceptVillageTask() {
+      if (player.completedQuests.villageTasksAccepted) {
+        render(`👵 **You've already committed to helping the village.** What task will you complete next?`, [
+          { label: player.completedQuests.defensesStrengthened ? "🛡️ Defenses strengthened" : "🛡️ Strengthen village defenses", action: "strengthenDefenses()" },
+          { label: player.completedQuests.herbsGathered ? "🌿 Herbs gathered" : "🌿 Gather healing herbs", action: "gatherHerbs()" },
+          { label: player.completedQuests.threatsScouted ? "🔍 Threats scouted" : "🔍 Scout for threats", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+        return;
+      }
+
+      player.statusEffects.push("Village Protector"); 
+      player.inventory.push("Protective Charm"); 
+      player.completedQuests.villageTasksAccepted = true; // Mark as accepted
+      saveGame(); // Checkpoint after accepting village tasks
+      render(`👵 **The Village's Champion** 👵\n\nNomsa nods approvingly and removes a leather cord from around her neck.\n\n"This charm has protected my family for three generations. It will serve you better than it serves these old bones."\n\n+1 item gained: Protective Charm\n\n"There are three tasks that need doing: strengthen our defenses, gather healing supplies, and scout for threats. Choose wisely."`, [
+        { label: "🛡️ Strengthen village defenses", action: "strengthenDefenses()" },
+        { label: "🌿 Gather healing herbs", action: "gatherHerbs()" },
+        { label: "🔍 Scout for threats", action: "scoutThreats()" }
+      ]);
+    }
+
+    /**
+     * Helps strengthen village defenses, with success depending on Strength.
+     */
+    function strengthenDefenses() {
+      if (player.completedQuests.defensesStrengthened) {
+        render(`🛡️ **You've already helped strengthen the village defenses.** They are as strong as they can be.`, [
+          { label: player.completedQuests.herbsGathered ? "🌿 Herbs gathered" : "🌿 Try gathering herbs instead", action: "gatherHerbs()" },
+          { label: player.completedQuests.threatsScouted ? "🔍 Threats scouted" : "🔍 Scout the area", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+        return;
+      }
+
+      const success = performSkillCheck(player.stats.strength, 9); // Strength check for defenses.
+      if (success) {
+        player.stats.strength += 1; 
+        player.experience += 15;
+        player.completedQuests.defensesStrengthened = true; // Mark as completed
+        saveGame(); // Checkpoint after strengthening defenses
+        render(`🛡️ **Defenses Strengthened** 🛡️\n\nYou put your strength to work! You help the villagers reinforce their walls with thornbush barriers and dig protective trenches. Your muscles grow stronger from the hard work.\n\n+1 Strength, +15 Experience\n\nThe village is now better prepared for danger.`, [
+          { label: "Continue helping", action: "villageTasksComplete()" }
+        ]);
+      } else {
+        render(`🛡️ **Partial Success** 🛡️\n\nYou work hard, but the defenses still need more work. The villagers appreciate your effort, though some barriers remain incomplete.`, [
+          { label: "🌿 Try gathering herbs instead", action: "gatherHerbs()" },
+          { label: "🔍 Scout the area", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+      }
+    }
+
+    /**
+     * Gathers healing herbs for the village, with success depending on Wisdom.
+     */
+    function gatherHerbs() {
+      if (player.completedQuests.herbsGathered) {
+        render(`🌿 **You've already gathered all the necessary herbs.** The village's healing supplies are stocked.`, [
+          { label: player.completedQuests.defensesStrengthened ? "🛡️ Defenses strengthened" : "🛡️ Help with defenses", action: "strengthenDefenses()" },
+          { label: player.completedQuests.threatsScouted ? "🔍 Threats scouted" : "🔍 Scout instead", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+        return;
+      }
+
+      const success = performSkillCheck(player.stats.wisdom, 8); // Wisdom check for herbs.
+      if (success) {
+        player.inventory.push("Medicinal Herbs", "Healing Potion"); 
+        player.stats.wisdom += 1; 
+        player.completedQuests.herbsGathered = true; // Mark as completed
+        saveGame(); // Checkpoint after gathering herbs
+        render(`🌿 **Herb Gathering Success** 🌿\n\nYou use your knowledge to find the best healing plants!\n\nYour ${player.ancestry} training helps you identify potent medicinal herbs and even craft a healing potion.\n\n+2 items gained, +1 Wisdom`, [
+          { label: "Continue helping", action: "villageTasksComplete()" }
+        ]);
+      } else {
+        render(`🌿 **Limited Success** 🌿\n\nYou find some basic herbs, but nothing particularly potent. Still, every bit helps.`, [
+          { label: "🛡️ Help with defenses", action: "strengthenDefenses()" },
+          { label: "🔍 Scout instead", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+      }
+    }
+
+    /**
+     * Scouts for threats around the village, leading to a combat encounter.
+     */
+    function scoutThreats() {
+      if (player.completedQuests.threatsScouted) {
+        render(`🔍 **You've already scouted the perimeter.** The immediate threats have been dealt with.`, [
+          { label: player.completedQuests.defensesStrengthened ? "🛡️ Defenses strengthened" : "🛡️ Help with defenses", action: "strengthenDefenses()" },
+          { label: player.completedQuests.herbsGathered ? "🌿 Herbs gathered" : "🌿 Gather herbs", action: "gatherHerbs()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+        return;
+      }
+      player.completedQuests.threatsScouted = true; // Mark as completed before combat
+      enemy = {
+        name: "Pack of Shadow Jackals",
+        hp: 12,
+        maxHp: 12,
+        attack: 4,
+        description: "Three dark-furred jackals with glowing red eyes, corrupted by shadow magic.",
+        emoji: `<img src="${enemyImages["Pack of Shadow Jackals"]}" alt="Pack of Shadow Jackals" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`
+      };
+      saveGame(); // Checkpoint before combat
+      render(`🔍 **Scouting Mission** 🔍\n\nYou venture beyond the village perimeter and discover tracks in the mud—multiple predators circling the settlement.\n\nSuddenly, glowing red eyes emerge from the tall grass. A pack of shadow-corrupted jackals has found you!\n\nYou must fight to protect the village!`, [
+        { label: "⚔️ Fight the pack", action: "combatEncounter()" }
+      ]);
+    }
+
+    /**
+     * Indicates that village tasks are complete and offers further options.
+     */
+    function villageTasksComplete() {
+      // This function is a narrative checkpoint, not a repeatable quest itself.
+      // It's called after completing one of the sub-tasks.
+      // We can check if all sub-tasks are done here to offer a final blessing.
+      if (player.completedQuests.defensesStrengthened && player.completedQuests.herbsGathered && player.completedQuests.threatsScouted) {
+        render(`🏘️ **Village Tasks Complete** 🏘️\n\nThe villagers gather around you with grateful smiles. Your efforts have made a real difference in their preparations.\n\nElder Nomsa approaches with a final blessing.\n\n"You have proven yourself a true protector. The ancestors smile upon your deeds."`, [
+          { label: player.completedQuests.finalVillageBlessing ? "🗣️ Blessing received" : "🗣️ Speak with the elder", action: "finalVillageBlessing()" },
+          { label: "🏘️ Explore more of the village", action: "exploreVillage()" }, 
+          { label: "➡️ Continue your journey", action: "continueJourney()" }
+        ]);
+      } else {
+        render(`🏘️ **Village Tasks Pending** 🏘️\n\nYou've completed some tasks, but there's still more to do to fully prepare the village.`, [
+          { label: player.completedQuests.defensesStrengthened ? "🛡️ Defenses strengthened" : "🛡️ Strengthen village defenses", action: "strengthenDefenses()" },
+          { label: player.completedQuests.herbsGathered ? "🌿 Herbs gathered" : "🌿 Gather healing herbs", action: "gatherHerbs()" },
+          { label: player.completedQuests.threatsScouted ? "🔍 Threats scouted" : "🔍 Scout for threats", action: "scoutThreats()" },
+          { label: "➡️ Return to Elder Nomsa", action: "talkElder()" }
+        ]);
+      }
+    }
+
+    /**
+     * Receives a final blessing from the Elder, granting Spirit and an Ancestral Blessing.
+     */
+    function finalVillageBlessing() {
+      if (player.completedQuests.finalVillageBlessing) {
+        render(`✨ **You've already received the Elder's blessing.** Her words echo in your heart.`, [
+          { label: "🏘️ Explore the village", action: "exploreVillage()" }, 
+          { label: "➡️ Continue your journey", action: "continueJourney()" }
+        ]);
+        return;
+      }
+
+      player.stats.spirit += 2; 
+      player.inventory.push("Ancestral Blessing"); 
+      player.completedQuests.finalVillageBlessing = true; // Mark as completed
+      saveGame(); // Checkpoint after final blessing
+      render(`✨ **Ancestral Blessing** ✨\n\nElder Nomsa raises her staff and speaks in the old tongue. Warm energy flows through you as the blessing takes hold.\n\n"May the spirits of our ancestors guide your path to the Inkanyamba. You carry our hopes with you."\n\n+2 Spirit, Ancestral Blessing acquired!`, [
+        { label: "🙏 Thank the elder", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Declines helping the village, with a narrative response from the Elder.
+     */
+    function declineVillageTask() {
+      saveGame(); // Checkpoint after declining village task
+      render(`👵 **Respected Choice** 👵\n\nElder Nomsa nods slowly, though disappointment flickers in her eyes.\n\n"I understand, ${player.name}. Your path may lead elsewhere, and we cannot force destiny. But know that our gratitude remains."`, [
+        { label: "➡️ Continue your journey", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Allows the player to explore the village further.
+     */
+    function exploreVillage() {
+      render(`🏘️ **Exploring Emakhaya** 🏘️\n\nYou wander through the bustling village. Children play, artisans craft, and the scent of various foods fills the air. You notice a small hut with strange carvings—perhaps a shaman's abode?`, [
+        { label: player.completedQuests.shamanVisited ? "🛖 Shaman already visited" : "🛖 Visit the shaman's hut", action: "visitShaman()" },
+        { label: "🗣️ Go back to Elder Nomsa", action: "talkElder()" },
+        { label: "➡️ Leave the village", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Visits the village shaman.
+     */
+    function visitShaman() {
+      if (player.completedQuests.shamanVisited) {
+        render(`🔮 **You've already visited the shaman.** They are deep in meditation.`, [
+          { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+        ]);
+        return;
+      }
+      player.completedQuests.shamanVisited = true; // Mark as visited
+      render(`🔮 **The Shaman's Hut** 🔮\n\nInside, a young shaman, eyes closed, chants softly amidst swirling smoke. Bones and charms hang from the ceiling. They sense your presence.\n\n"Welcome, wanderer. I see shadows clinging to your path. The storm approaches."`, [
+        { label: player.completedQuests.shamanGuidance ? "❓ Guidance received" : "❓ Ask for guidance", action: "askShamanGuidance()" },
+        { label: player.completedQuests.shamanGiftGiven ? "🎁 Gift already offered" : "🎁 Offer a gift (if you have one)", action: "offerShamanGift()" },
+        { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+      ]);
+    }
+
+    /**
+     * Asks the shaman for guidance, with success depending on Wisdom.
+     */
+    function askShamanGuidance() {
+      if (player.completedQuests.shamanGuidance) {
+        render(`🔮 **The shaman has already shared their wisdom with you.** There is nothing new to learn at this time.`, [
+          { label: "🎁 Offer a gift", action: "offerShamanGift()" },
+          { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+        ]);
+        return;
+      }
+      const success = performSkillCheck(player.stats.wisdom, 10); // Wisdom check for shaman's insight.
+      if (success) {
+        player.stats.spirit += 1;
+        player.completedQuests.shamanGuidance = true; // Mark as completed
+        saveGame(); // Checkpoint after shaman guidance
+        render(`🔮 **Shaman's Insight** 🔮\n\nYou successfully connect with the shaman's vision. "The Inkanyamba seeks balance, not destruction. But its awakening is violent. You must find the three ancient elemental conduits before it consumes the land."\n\nYour spirit feels more attuned to the world. (+1 Spirit)`, [
+          { label: "➡️ Continue your quest", action: "exploreVillage()" }
+        ]);
+      } else {
+        render(`🔮 **Unclear Vision** 🔮\n\nThe mists are thick, and the path unclear. The shaman shakes their head. "Return when your mind is sharper, or your spirit stronger."`, [
+          { label: "🎁 Offer a gift", action: "offerShamanGift()" },
+          { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+        ]);
+      }
+    }
+
+    /**
+     * Offers a gift to the shaman, consuming an item and granting Spirit.
+     */
+    function offerShamanGift() {
+      if (player.completedQuests.shamanGiftGiven) {
+        render(`🎁 **You've already offered a gift to the shaman.** They are content.`, [
+          { label: "❓ Ask for guidance", action: "askShamanGuidance()" },
+          { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+        ]);
+        return;
+      }
+      const valuableLoot = player.inventory.filter(item => ["Shadow Fang", "Dark Essence", "Beast Claw", "Mystic Bone"].includes(item));
+      if (valuableLoot.length > 0) {
+        const gift = valuableLoot[0];
+        player.inventory = player.inventory.filter(item => item !== gift); 
+        player.stats.spirit += 3; 
+        player.completedQuests.shamanGiftGiven = true; // Mark as completed
+        saveGame(); // Checkpoint after offering gift
+        render(`🎁 **Shaman's Gratitude** 🎁\n\nYou offer the shaman a ${gift}. Their eyes gleam. "A worthy offering! May this token of gratitude empower you."\n\nYour spirit surges with new energy. (+3 Spirit)`, [
+          { label: "➡️ Continue your quest", action: "exploreVillage()" }
+        ]);
+      } else {
+        render(`🎁 You have nothing suitable to offer the shaman. Their gaze is impassive.`, [
+          { label: "❓ Ask for guidance", action: "askShamanGuidance()" },
+          { label: "⬅️ Leave the hut", action: "exploreVillage()" }
+        ]);
+      }
+    }
+
+    /**
+     * Leads the player into the Drakensberg Forest.
+     */
+    function goForest() {
+      currentLocation = "forest"; 
+      saveGame(); // Checkpoint at forest entrance
+      render(`🌲 **Into the Drakensberg Forest** 🌲\n\nThe ancient trees loom, their branches intertwined like skeletal fingers. The air is thick with the scent of damp earth and unseen life. Distant caws echo through the canopy.\n\nThis forest feels... alive, and watching.`, [
+        { label: player.completedQuests.forestTracks ? "🐾 Tracks already followed" : "🐾 Follow animal tracks", action: "forestTracks()" },
+        { label: player.completedQuests.forestPlants ? "🍄 Plants already found" : "🍄 Search for rare plants", action: "forestPlants()" },
+        { label: "⬅️ Return to the crossroads", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Attempts to follow animal tracks in the forest, potentially finding a "Shard of Ancient Power."
+     */
+    function forestTracks() {
+      if (player.completedQuests.forestTracks) {
+        render(`🐾 **You've already followed these tracks.** They lead to nothing new.`, [
+          { label: player.completedQuests.forestPlants ? "🍄 Plants already found" : "🍄 Search for plants instead", action: "forestPlants()" },
+          { label: "⬅️ Return to the crossroads", action: "continueJourney()" }
+        ]);
+        return;
+      }
+      const success = performSkillCheck(player.stats.wisdom, 7); // Wisdom check for tracking.
+      if (success) {
+        player.experience += 10;
+        player.inventory.push("Shard of Ancient Power"); // Item added here
+        player.completedQuests.forestTracks = true; // Mark as completed
+        saveGame(); // Checkpoint after finding shard
+        render(`🐾 **Successful Tracking** 🐾\n\nYou expertly follow the tracks, leading you to a hidden clearing. There, you find a small, glowing shard. It hums with latent power.\n\n+10 Experience, Found a Shard of Ancient Power.`, [
+          { label: "🌲 Explore deeper", action: "goForest()" }
+        ]);
+      } else {
+        render(`🐾 **Lost the Trail** 🐾\n\nThe tracks vanish amidst the undergrowth. The forest seems to shift around you, disorienting your senses.`, [
+          { label: player.completedQuests.forestPlants ? "🍄 Plants already found" : "🍄 Search for plants instead", action: "forestPlants()" },
+          { label: "⬅️ Return to the crossroads", action: "continueJourney()" }
+        ]);
+      }
+    }
+
+    /**
+     * Searches for rare plants in the forest, potentially finding "Forest Berries" and "Dreampetal."
+     */
+    function forestPlants() {
+      if (player.completedQuests.forestPlants) {
+        render(`🍄 **You've already found all the rare plants here.** The forest has given up its secrets.`, [
+          { label: player.completedQuests.forestTracks ? "🐾 Tracks already followed" : "🐾 Try tracking", action: "forestTracks()" },
+          { label: "⬅️ Return to the crossroads", action: "continueJourney()" }
+        ]);
+        return;
+      }
+      const success = performSkillCheck(player.stats.wisdom, 9); // Wisdom check for plants.
+      if (success) {
+        player.inventory.push("Forest Berries", "Dreampetal"); 
+        player.completedQuests.forestPlants = true; // Mark as completed
+        saveGame(); // Checkpoint after finding plants
+        render(`🍄 **Rare Finds** 🍄\n\nYour keen eye spots rare and potent flora! You gather vibrant Forest Berries and delicate, shimmering Dreampetals.\n\nThese could prove useful.`, [
+          { label: "🌲 Explore deeper", action: "goForest()" }
+        ]);
+      } else {
+        render(`🍄 **Common Flora** 🍄\n\nYou find only common forest plants. Still, every bit helps.`, [
+          { label: player.completedQuests.forestTracks ? "🐾 Tracks already followed" : "🐾 Try tracking", action: "forestTracks()" },
+          { label: "⬅️ Return to the crossroads", action: "continueJourney()" }
+        ]);
+      }
+    }
+
+    /**
+     * Leads the player to ascend Kwantu Peak (the mountains).
+     */
+    function goMountains() {
+      currentLocation = "mountains"; 
+      saveGame(); // Checkpoint at mountains entrance
+      render(`⛰️ **Ascending Kwantu Peak** ⛰️\n\nThe air thins as you climb the craggy slopes of Kwantu Peak. Thunder echoes almost constantly now, shaking the ground. Dark clouds swirl around the summit like an angry beast.\n\nThis is where the Inkanyamba stirs.`, [
+        { label: player.completedQuests.caveFound ? "🧗 Cave already found" : "🧗 Find a cave entrance", action: "findCave()" },
+        { label: player.completedQuests.summitScouted ? "🔭 Summit already scouted" : "🔭 Scout the summit", action: "scoutSummit()" },
+        { label: "⬅️ Descend back to crossroads", action: "continueJourney()" }
+      ]);
+    }
+
+    /**
+     * Attempts to find a cave entrance on the mountain, with success depending on Wisdom.
+     */
+    function findCave() {
+      if (player.completedQuests.caveFound) {
+        render(`🧗 **You've already found the cave entrance.** It lies open before you.`, [
+          { label: "🔦 Enter the cave", action: "enterCave()" },
+          { label: player.completedQuests.summitScouted ? "🔭 Summit already scouted" : "🔭 Scout the summit instead", action: "scoutSummit()" },
+          { label: "⬅️ Descend", action: "continueJourney()" }
+        ]);
+        return;
+      }
+      const success = performSkillCheck(player.stats.wisdom, 9); // Wisdom check for finding cave.
+      if (success) {
+        player.statusEffects.push("Cave Explored"); 
+        player.completedQuests.caveFound = true; // Mark as completed
+        saveGame(); // Checkpoint after finding cave
+        render(`🧗 **Cave Discovered!**🧗\n\nYour wisdom guides you to a hidden crevice, barely visible behind a waterfall. It leads into darkness, hinting at deep caverns within the mountain.`, [
+          { label: "🔦 Enter the cave", action: "enterCave()" }
+        ]);
+      } else {
+        render(`🧗 **No Easy Way In** 🧗\n\nThe mountain seems unwilling to reveal its secrets. Every path you try leads to sheer rock or a dead end.`, [
+          { label: player.completedQuests.summitScouted ? "🔭 Summit already scouted" : "🔭 Scout the summit instead", action: "scoutSummit()" },
+          { label: "⬅️ Descend", action: "continueJourney()" }
+        ]);
+      }
+    }
+
+    /**
+     * Enters the discovered cave.
+     */
+    function enterCave() {
+      render(`🔦 **Deep within Kwantu Peak** 🔦\n\nThe air in the cave is heavy and smells of ozone and ancient earth. Strange glowing fungi illuminate the path. You hear a low, resonant thrumming from deeper inside—the heartbeat of the mountain, or something more...`, [
+        { label: "➡️ Follow the thrumming", action: "followThrumming()" },
+        { label: player.completedQuests.caveAreaSearched ? "🔎 Area already searched" : "🔎 Search the immediate area", action: "searchCaveArea()" }
+      ]);
+    }
+
+    /**
+     * Searches the immediate cave area, potentially finding "Glowcap Mushroom."
+     */
+    function searchCaveArea() {
+      if (player.completedQuests.caveAreaSearched) {
+        render(`🔎 **You've already searched this area of the cave.** Nothing new to find.`, [
+          { label: "➡️ Continue deeper", action: "followThrumming()" }
+        ]);
+        return;
+      }
+      const success = performSkillCheck(player.stats.wisdom, 6); // Wisdom check for searching.
+      if (success) {
+        player.inventory.push("Glowcap Mushroom"); 
+        player.completedQuests.caveAreaSearched = true; // Mark as completed
+        saveGame(); // Checkpoint after finding glowcap
+        render(`🔎 **Cave Discovery** 🔎\n\nYou carefully search the cave walls, finding a cluster of vibrant Glowcap Mushrooms. They might have properties useful in darkness or for healing.`, [
+          { label: "➡️ Continue deeper", action: "followThrumming()" }
+        ]);
+      } else {
+        render(`🔎 **Nothing found** 🔎\n\nYou find nothing of immediate interest in this section of the cave.`, [
+          { label: "➡️ Continue deeper", action: "followThrumming()" }
+        ]);
+      }
+    }
+
+    /**
+     * Follows the thrumming sound deeper into the cave, leading to the Inkanyamba if "Marked by Destiny."
+     */
+    function followThrumming() {
+      if (player.statusEffects.includes("Marked by Destiny")) {
+          saveGame(); // Checkpoint before final boss
+          render(`⚡ **The Thunder Chamber Beckons** ⚡\n\nThe thrumming grows louder, echoing through your bones. You feel a powerful pull, a recognition within your very spirit. This is the Thunder Chamber, the lair of the Inkanyamba. The air crackles with raw elemental energy.`, [
+              { label: " মুখোমুখি Face the Inkanyamba", action: "finalInkanyambaEncounter()" }
+          ]);
+      } else {
+          render(`⛈️ **Overwhelmed by Power** ⛈️\n\nThe thrumming becomes deafening, the elemental energy too intense. You feel yourself being pushed back, unable to withstand the raw power of this place without some deeper connection.`, [
+              { label: "⬅️ Retreat from the overwhelming power", action: "goMountains()" }
+          ]);
+      }
+    }
+
+    /**
+     * Scouts the summit of the mountain, leading to a combat encounter with a "Thunder Eagle."
+     */
+    function scoutSummit() {
+      if (player.completedQuests.summitScouted) {
+        render(`🔭 **You've already scouted the summit.** The Thunder Eagle has been dealt with, or you've learned all you can.`, [
+          { label: player.completedQuests.caveFound ? "🧗 Cave already found" : "🧗 Find a cave entrance instead", action: "findCave()" },
+          { label: "⬅️ Descend", action: "continueJourney()" }
+        ]);
+        return;
+      }
+      player.completedQuests.summitScouted = true; // Mark as completed before combat
+      enemy = {
+        name: "Thunder Eagle",
+        hp: 10,
+        maxHp: 10,
+        attack: 5,
+        description: "A colossal eagle with feathers crackling with lightning, guarding the peak.",
+        emoji: `<img src="${enemyImages["Thunder Eagle"]}" alt="Thunder Eagle" onerror="this.onerror=null;this.src='https://placehold.co/180x100/000000/FFFFFF?text=Image+Error';">`
+      };
+      saveGame(); // Checkpoint before combat
+      render(`🔭 **Summit Guardian!** 🔭\n\nYou ascend higher, reaching a windswept plateau. Suddenly, a massive eagle, its eyes blazing with lightning, descends from the storm clouds. It screeches a challenge!\n\nYou must fight!`, [
+        { label: "⚔️ Fight the Thunder Eagle", action: "combatEncounter()" }
+      ]);
+    }
+
+    /**
+     * Initiates the final combat encounter with the Inkanyamba.
+     * Includes special options based on player ancestry or status effects.
+     */
+    function finalInkanyambaEncounter() {
+      gameState = "final_combat"; 
+      enemy = {
+        name: "Inkanyamba, The Storm Serpent",
+        hp: 30,
+        maxHp: 30,
+        attack: 7,
+        description: "A colossal serpent of swirling storm clouds and lightning, its eyes like twin thunderstorms. Its roar shakes the very mountain.",
+        emoji: `<img src="${enemyImages["Inkanyamba, The Storm Serpent"]}" alt="Inkanyamba" onerror="this.onerror=null;this.src='https://placehold.co/180x180/000000/FFFFFF?text=Image+Error';">`
+      };
+
+      let combatText = `⚡ **FINAL BATTLE: Inkanyamba!** ⚡\n\nBefore you, filling the vast Thunder Chamber, is the legendary Inkanyamba. Its scales ripple with lightning, its ancient eyes burning with raw power. This is what you came for.`;
+      
+      let combatOptions = [
+          { label: "⚔️ Attack", action: "playerAttackInkanyamba()" },
+          { label: "🛡️ Dodge", action: "attemptDodgeInkanyamba()" },
+          { label: "🎒 Use Item", action: "useItemInkanyamba()" }
+      ];
+
+      if (player.ancestry === "Serpent Caller") {
+          combatOptions.unshift({ label: "🐍 Attempt to calm the beast", action: "attemptCalmInkanyamba()" });
+      }
+      if (player.ancestry === "Sangoma") {
+          combatOptions.unshift({ label: "✨ Channel Ancestral Spirits", action: "channelAncestralSpirits()" });
+      }
+      if (player.statusEffects.includes("Marked by Destiny")) {
+           combatOptions.unshift({ label: "⚡ Command Lightning", action: "commandLightning()" });
+      }
+      
+      const visualContent = `
+        <div id="player-char" class="combat-char">${player.emoji}</div>
+        <div class="text-4xl mx-4">VS</div>
+        <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+      `;
+
+      render(combatText, combatOptions,
+      `<div class="bg-red-900 rounded-lg p-3 mt-4">
+        <div class="flex justify-between text-sm mb-2">
+          <span>🫵 Your HP: ${player.stats.hp}/${player.stats.maxHp}</span>
+          <span>👹 Inkanyamba HP: ${enemy.hp}/${enemy.maxHp}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gray-700 rounded"><div class="bg-red-600 h-2 rounded" style="width: ${(player.stats.hp/player.stats.maxHp)*100}%"></div></div>
+          <div class="bg-gray-700 rounded"><div class="bg-orange-600 h-2 rounded" style="width: ${(enemy.hp/enemy.maxHp)*100}%"></div></div>
+        </div>
+      </div>`, visualContent);
+    }
+
+    /**
+     * Handles player's attack specifically against Inkanyamba.
+     */
+    function playerAttackInkanyamba() {
+      const playerCharEl = document.getElementById('player-char');
+      if (playerCharEl) playerCharEl.classList.add('player-attacking');
+
+      const attackSuccess = performSkillCheck(player.stats.strength + player.stats.attack, 10);
+      let damage = 0;
+      let resultText = "";
+
+      setTimeout(() => { // Delay to allow attack animation to play
+        if (playerCharEl) playerCharEl.classList.remove('player-attacking');
+
+        if (attackSuccess) {
+          damage = Math.floor(Math.random() * 5) + player.stats.strength + player.stats.attack; 
+          if (Math.random() < 0.25) {
+              damage *= 2;
+              resultText = `💥 You land a CRITICAL STRIKE on the Inkanyamba for ${damage} damage!`;
+          } else {
+              resultText = `⚔️ You strike the Inkanyamba for ${damage} damage!`;
+          }
+          enemy.hp -= damage;
+          playHitAnimation('enemy-char');
+        } else {
+          resultText = `💨 You attempt to strike, but the Inkanyamba's stormy form makes it hard to land a blow!`;
+        }
+
+        if (enemy.hp <= 0) {
+          player.experience += 100; 
+          checkLevelUp();
+          endGameVictory(resultText); 
+        } else {
+          enemyAttackInkanyamba(resultText); 
+        }
+      }, 300); // Match this delay to the attack-move-player animation duration
+    }
+
+    /**
+     * Handles Inkanyamba's attack against the player.
+     */
+    function enemyAttackInkanyamba(previous) {
+      const enemyCharEl = document.getElementById('enemy-char');
+      if (enemyCharEl) enemyCharEl.classList.add('enemy-attacking');
+
+      setTimeout(() => { // Delay to allow attack animation to play
+        if (enemyCharEl) enemyCharEl.classList.remove('enemy-attacking');
+
+        let damage = Math.max(1, Math.floor(Math.random() * enemy.attack) + 3 - player.stats.defense);
+        player.stats.hp -= damage;
+        playHitAnimation('player-char');
+        
+        if (player.stats.hp <= 0) {
+          player.stats.hp = 0;
+          endGameDefeat(previous); 
+        } else {
+          const visualContent = `
+            <div id="player-char" class="combat-char">${player.emoji}</div>
+            <div class="text-4xl mx-4">VS</div>
+            <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+          `;
+          render(`${previous}\n\n💥 The Inkanyamba unleashes a devastating lightning strike for ${damage} damage!`, [
+            { label: "⚔️ Attack again", action: "playerAttackInkanyamba()" },
+            { label: "🛡️ Try to dodge", action: "attemptDodgeInkanyamba()" },
+            { label: "🎒 Use Item", action: "useItemInkanyamba()" }
+          ],
+          `<div class="bg-red-900 rounded-lg p-3 mt-4">
+            <div class="flex justify-between text-sm mb-2">
+              <span>🫵 Your HP: ${player.stats.hp}/${player.stats.maxHp}</span>
+              <span>👹 Inkanyamba HP: ${enemy.hp}/${enemy.maxHp}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-gray-700 rounded"><div class="bg-red-600 h-2 rounded" style="width: ${(player.stats.hp/player.stats.maxHp)*100}%"></div></div>
+              <div class="bg-gray-700 rounded"><div class="bg-orange-600 h-2 rounded" style="width: ${(enemy.hp/enemy.maxHp)*100}%"></div></div>
+            </div>
+          </div>`, visualContent);
+        }
+      }, 300); // Match this delay to the attack-move-enemy animation duration
+    }
+
+    /**
+     * Attempts to dodge Inkanyamba's attack.
+     */
+    function attemptDodgeInkanyamba() {
+      const dodgeSuccess = performSkillCheck(player.stats.wisdom + player.stats.defense, 12); // Harder dodge check against Inkanyamba.
+      
+      if (dodgeSuccess) {
+        const visualContent = `
+          <div id="player-char" class="combat-char">${player.emoji}</div>
+          <div class="text-4xl mx-4">VS</div>
+          <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+        `;
+        render(`🌪️ **Incredible Dodge!** 🌪️\n\nYou narrowly escape the Inkanyamba's fury! The chamber trembles as its attack misses.`, [
+          { label: "⚔️ Counterattack", action: "playerAttackInkanyanyamba()" },
+          { label: "🎒 Use Item", action: "useItemInkanyamba()" }
+        ], '', visualContent);
+      } else {
+        enemyAttackInkanyamba(`🌪️ You fail to dodge in time!`);
+      }
+    }
+
+    /**
+     * Displays usable items during the Inkanyamba fight.
+     */
+    function useItemInkanyamba() {
+      const usableItems = player.inventory.filter(item => 
+        item === "Healing Herbs" || item === "Spirit Idol" || item === "Protective Charm" || item === "Healing Potion" || item === "Lightning Rod" || item === "Forest Berries" || item === "Dreampetal"
+      );
+      
+      if (usableItems.length === 0) {
+        render(`🎒 You have no usable items in combat.`, [
+          { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" },
+          { label: "🛡️ Dodge instead", action: "attemptDodgeInkanyamba()" }
+        ]);
+        return;
+      }
+      
+      let itemOptions = usableItems.map(item => ({
+        label: `Use ${item}`,
+        action: `useSpecificItemInkanyamba('${item}')`
+      }));
+      
+      render(`🎒 **Choose an item to use:**`, itemOptions.concat([
+        { label: "🔙 Back to combat", action: "finalInkanyambaEncounter()" }
+      ]));
+    }
+
+    /**
+     * Uses a specific item during the Inkanyamba fight.
+     */
+    function useSpecificItemInkanyamba(item) {
+      const itemIndex = player.inventory.indexOf(item); 
+      if (itemIndex === -1) {
+          render(`❌ You don't have that item.`, [{ label: "Try again", action: "useItemInkanyamba()" }]);
+          return;
+      }
+
+      let itemEffectText = "";
+      let continueAction = "finalInkanyambaEncounter()";
+
+      if (item === "Healing Herbs") {
+          player.inventory.splice(itemIndex, 1);
+          const healing = 4 + player.stats.spirit;
+          player.stats.hp = Math.min(player.stats.hp + healing, player.stats.maxHp);
+          itemEffectText = `🌿 You use your Healing Herbs and recover ${healing} HP!`;
+      } else if (item === "Healing Potion") {
+          player.inventory.splice(itemIndex, 1);
+          const healing = 8 + player.stats.spirit; 
+          player.stats.hp = Math.min(player.stats.hp + healing, player.stats.maxHp);
+          itemEffectText = `🧪 You drink the Healing Potion and feel a significant surge of health! (+${healing} HP)`;
+      }
+      else if (item === "Spirit Idol") {
+          player.inventory.splice(itemIndex, 1);
+          const damage = 6 + player.stats.spirit * 2; 
+          enemy.hp -= damage;
+          playHitAnimation('enemy-char');
+          itemEffectText = `✨ The Spirit Idol unleashes a burst of pure ancestral energy, dealing ${damage} damage!`;
+          if (enemy.hp <= 0) {
+              player.experience += 10;
+              checkLevelUp();
+              endGameVictory(`✨ The Spirit Idol unleashes a burst of pure ancestral energy, dealing ${damage} damage and shattering the Inkanyamba's form!`);
+              return; 
+          }
+      } else if (item === "Protective Charm") {
+          player.inventory.splice(itemIndex, 1);
+          player.statusEffects.push("Charmed (Def)"); 
+          player.stats.defense += 3; 
+          itemEffectText = `🛡️ You activate the Protective Charm! Your defenses are significantly bolstered against the storm!`;
+      } else if (item === "Lightning Rod") {
+          player.inventory.splice(itemIndex, 1);
+          const damage = 10 + player.stats.spirit * 3; 
+          enemy.hp -= damage;
+          playHitAnimation('enemy-char');
+          itemEffectText = `🌩️ You plunge the Lightning Rod into the ground, channeling Inkanyamba's own power against it! The feedback deals ${damage} damage!`;
+          if (enemy.hp <= 0) {
+              player.experience += 10;
+              checkLevelUp();
+              endGameVictory(`🌩️ You plunge the Lightning Rod into the ground, channeling Inkanyamba's own power against it! The feedback deals ${damage} damage, and the great serpent collapses!`);
+              return; 
+          }
+      } else if (item === "Forest Berries") {
+          player.inventory.splice(itemIndex, 1);
+          player.stats.hp = Math.min(player.stats.hp + 3, player.stats.maxHp);
+          itemEffectText = `🍓 You eat the Forest Berries and feel a slight rejuvenation. (+3 HP)`;
+      } else if (item === "Dreampetal") {
+          player.inventory.splice(itemIndex, 1);
+          player.statusEffects.push("Inspired"); 
+          player.stats.wisdom += 2; 
+          itemEffectText = `🌸 You consume the Dreampetal. Your mind feels exceptionally clear, granting insight into Inkanyamba's patterns. (+2 Wisdom)`;
+      }
+      else {
+        render(`❌ You cannot use that item right now.`, [
+          { label: "Try again", action: "useItemInkanyamba()" }
+        ]);
+        return; 
+      }
+
+      const visualContent = `
+        <div id="player-char" class="combat-char">${player.emoji}</div>
+        <div class="text-4xl mx-4">VS</div>
+        <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+      `;
+      render(itemEffectText, [{ label: "Continue", action: continueAction }], '', visualContent);
+
+      if (enemy.hp > 0 && gameState === "final_combat") {
+         setTimeout(() => enemyAttackInkanyamba(itemEffectText), 700);
+      }
+    }
+
+    /**
+     * Special ability for Serpent Caller ancestry: attempt to calm Inkanyamba.
+     */
+    function attemptCalmInkanyamba() {
+        if (player.ancestry !== "Serpent Caller") {
+            render(`🐍 You are not a Serpent Caller. Your words have no effect on the beast.`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ]);
+            return;
+        }
+
+        const success = performSkillCheck(player.stats.spirit, 12); // High spirit check to calm.
+        if (success) {
+            enemy.hp -= (player.stats.spirit * 2); 
+            playHitAnimation('enemy-char');
+            if (enemy.hp <= 0) {
+                player.experience += 100;
+                checkLevelUp();
+                endGameVictory(`🐍 The Inkanyamba, momentarily calmed, becomes vulnerable. You deliver a final, decisive strike, bringing peace to the storm.`);
+            } else {
+                const visualContent = `
+                  <div id="player-char" class="combat-char">${player.emoji}</div>
+                  <div class="text-4xl mx-4">VS</div>
+                  <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+                `;
+                render(`🐍 **The Serpent Hears You!** 🐍\n\nYou channel your Serpent Caller lineage, whispering ancient words of calming. The Inkanyamba's rage seems to subside, if only for a moment. Its attacks become less ferocious for a time.`, [
+                    { label: "⚔️ Seize the moment!", action: "playerAttackInkanyamba()" }
+                ], '', visualContent);
+                setTimeout(() => enemyAttackInkanyamba(`The calming effect wears off.`), 700);
+            }
+        } else {
+            const visualContent = `
+              <div id="player-char" class="combat-char">${player.emoji}</div>
+              <div class="text-4xl mx-4">VS</div>
+              <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+            `;
+            render(`🐍 You try to calm the beast, but your plea is lost in the storm. The Inkanyamba roars in defiance!`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ], '', visualContent);
+            setTimeout(() => enemyAttackInkanyamba(`The Inkanyamba is angered by your attempt!`), 700);
+        }
+    }
+
+    /**
+     * Special ability for Sangoma ancestry: channel ancestral spirits for healing and damage.
+     */
+    function channelAncestralSpirits() {
+        if (player.ancestry !== "Sangoma") {
+            render(`✨ Only a Sangoma can truly channel the ancient spirits here.`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ]);
+            return;
+        }
+        const success = performSkillCheck(player.stats.spirit, 10); // Spirit check for channeling.
+        if (success) {
+            const healing = 10 + player.stats.spirit;
+            const damage = 5 + player.stats.wisdom; 
+            player.stats.hp = Math.min(player.stats.hp + healing, player.stats.maxHp);
+            enemy.hp -= damage;
+            playHitAnimation('enemy-char');
+            let result = `✨ You successfully channel your ancestral spirits! You feel renewed (+${healing} HP) and a wave of spiritual energy washes over Inkanyamba, dealing ${damage} damage!`;
+            if (enemy.hp <= 0) {
+                player.experience += 100;
+                checkLevelUp();
+                endGameVictory(result + ` The Inkanyamba, weakened by your ancestral power, finally succumbs.`);
+            } else {
+                const visualContent = `
+                  <div id="player-char" class="combat-char">${player.emoji}</div>
+                  <div class="text-4xl mx-4">VS</div>
+                  <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+                `;
+                render(result, [
+                    { label: "⚔️ Continue fighting", action: "finalInkanyambaEncounter()" }
+                ], '', visualContent);
+                setTimeout(() => enemyAttackInkanyamba(`The Inkanyamba is recovering from your spiritual attack!`), 700);
+            }
+        } else {
+            const visualContent = `
+              <div id="player-char" class="combat-char">${player.emoji}</div>
+              <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+            `;
+            render(`✨ You attempt to channel the spirits, but the storm interferes with your connection. You feel a drain on your energy.`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ], '', visualContent);
+            setTimeout(() => enemyAttackInkanyamba(`The attempt backfires slightly.`), 700);
+        }
+    }
+
+    /**
+     * Special ability if "Marked by Destiny": command lightning.
+     */
+    function commandLightning() {
+        if (!player.statusEffects.includes("Marked by Destiny")) {
+            render(`⚡ You do not possess the mark of destiny to command the storm.`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ]);
+            return;
+        }
+        const success = performSkillCheck(player.stats.spirit, 10); // Spirit check for commanding lightning.
+        const baseDamage = 15;
+        let totalDamage = baseDamage + player.stats.spirit * 2; 
+        
+        if (success) { 
+            totalDamage *= 1.5; 
+            enemy.hp -= totalDamage;
+            playHitAnimation('enemy-char');
+            let result = `⚡ With the Mark of Destiny, you command the very lightning within the chamber! A massive bolt strikes Inkanyamba, dealing ${Math.round(totalDamage)} devastating damage!`;
+            if (enemy.hp <= 0) {
+                player.experience += 100;
+                checkLevelUp();
+                endGameVictory(result + ` The Inkanyamba, pierced by its own element, dissipates into thin air!`);
+            } else {
+                const visualContent = `
+                  <div id="player-char" class="combat-char">${player.emoji}</div>
+                  <div class="text-4xl mx-4">VS</div>
+                  <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+                `;
+                render(result, [
+                    { label: "⚔️ Continue your assault", action: "finalInkanyambaEncounter()" }
+                ], '', visualContent);
+                setTimeout(() => enemyAttackInkanyamba(`The Inkanyamba is reeling from your lightning strike!`), 700);
+            }
+        } else {
+            const visualContent = `
+              <div id="player-char" class="combat-char">${player.emoji}</div>
+              <div class="text-4xl mx-4">VS</div>
+              <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+            `;
+            render(`⚡ You attempt to command the lightning, but the Inkanyamba resists your will. The bolt glances off its scales.`, [
+                { label: "⚔️ Attack instead", action: "playerAttackInkanyamba()" }
+            ], '', visualContent);
+            setTimeout(() => enemyAttackInkanyamba(`The Inkanyamba laughs at your feeble attempt!`), 700);
+        }
+    }
+
+    /**
+     * Ends the game with a victory message.
+     */
+    function endGameVictory(finalText) {
+      gameState = "end"; 
+      localStorage.removeItem('inkanyambaSave'); // Clear save on victory
+      render(`${finalText}\n\n🏆 **VICTORY! The Inkanyamba is Vanquished!** 🏆\n\nThe storm subsides, the clouds part, and a beam of moonlight illuminates the chamber. You have brought balance back to the land. Your legend begins now, ${player.name}.`, [
+        { label: "🎉 Play Again", action: "startGame()" }
+      ], '', `
+        <div class="text-6xl text-center mb-4">✨🏆✨</div>
+        <div class="flex justify-center items-center text-8xl">
+            <div id="player-char" class="combat-char">${player.emoji}</div>
+            <div class="text-4xl mx-4">🎉</div>
+            <div class="combat-char">✅</div>
+        </div>
+      `);
+    }
+
+    /**
+     * Ends the game with a defeat message.
+     */
+    function endGameDefeat(finalText) {
+      gameState = "end"; 
+      render(`${finalText}\n\n💀 **DEFEAT! The Storm Consumes You!** 💀\n\nThe Inkanyamba's power overwhelms you. The world fades to black as the storm serpent asserts its dominion. Your journey ends here... for now.`, [
+        { label: "🔄 Try Again (from last checkpoint)", action: "resumeGame()" },
+        { label: "🔄 Start a New Game", action: "startNewGame()" }
+      ], '', `
+        <div class="text-6xl text-center mb-4">💀💔💀</div>
+        <div class="flex justify-center items-center text-8xl">
+            <div id="player-char" class="combat-char">${player.emoji}</div>
+            <div class="text-4xl mx-4">❌</div>
+            <div id="enemy-char" class="combat-char">${enemy.emoji}</div>
+        </div>
+      `);
+    }
+
+    /**
+     * Placeholder for a 'restore balance' function, if needed in the future.
+     */
+    function restoreBalance() {
+      render(`✨ **Balance Restored!** ✨\n\nThrough your efforts, the ancient balance has been brought back. The Inkanyamba, now pacified, returns to its slumber, and peace returns to the land.`, [
+        { label: "🎉 Play Again", action: "startGame()" }
+      ]);
+    }
+
+    // --- Inventory Modal Functions ---
+
+    /**
+     * Displays the inventory modal with current items.
+     */
+    function showInventoryModal() {
+        const modal = document.getElementById('inventory-modal');
+        const inventoryListEl = document.getElementById('inventory-list');
+        itemDetailsEl = document.getElementById('item-details'); // Assign to global itemDetailsEl here
+
+        inventoryListEl.innerHTML = ''; // Clear previous list
+        itemDetailsEl.innerHTML = '<p>Click an item on the left to see its details.</p>'; // Reset details area
+
+        const maxInventorySlots = 25; // Define the fixed number of slots, e.g., 5x5
+
+        // Use a Map to count item quantities (for stacking display)
+        const itemCounts = new Map();
+        player.inventory.forEach(item => {
+            itemCounts.set(item, (itemCounts.get(item) || 0) + 1);
+        });
+
+        let filledSlotCount = 0;
+
+        // 1. Add actual items (unique types, with counts)
+        itemCounts.forEach((count, item) => {
+            const itemData = gameItems[item];
+            if (itemData) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-grid-item group relative'; // Added relative for absolute positioning of count
+                itemDiv.onclick = () => displayItemDetails(item);
+                itemDiv.innerHTML = `
+                    <img src="${itemData.imageUrl}" alt="${item}" onerror="this.onerror=null;this.src='https://placehold.co/60x60/000000/FFFFFF?text=Error';">
+                    ${count > 1 ? `<span class="absolute bottom-1 right-1 text-xs text-white bg-gray-900 px-1 rounded-full leading-none">${count}</span>` : ''}
+                `;
+                inventoryListEl.appendChild(itemDiv);
+                filledSlotCount++;
+            }
+        });
+
+        // 2. Add empty slots to reach the maxInventorySlots
+        for (let i = filledSlotCount; i < maxInventorySlots; i++) {
+            const emptySlotDiv = document.createElement('div');
+            emptySlotDiv.className = 'inventory-grid-item'; // Just the base class for empty slot styling
+            emptySlotDiv.innerHTML = ''; // Ensure it's empty
+            inventoryListEl.appendChild(emptySlotDiv);
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    /**
+     * Hides the inventory modal.
+     */
+    function hideInventoryModal() {
+        const modal = document.getElementById('inventory-modal');
+        modal.classList.add('hidden');
+    }
+
+    /**
+     * Displays details for a selected item in the inventory modal.
+     * @param {string} itemName - The name of the item to display details for.
+     */
+    function displayItemDetails(itemName) {
+        // itemDetailsEl is now accessible globally
+        const itemData = gameItems[itemName];
+
+        if (itemData) {
+            itemDetailsEl.innerHTML = `
+                <h4 class="text-xl font-bold text-green-300 mb-2">${itemName}</h4>
+                <p class="mb-2">${itemData.description}</p>
+                <p class="text-sm text-gray-300"><strong>Effect:</strong> ${itemData.effect}</p>
+            `;
+        } else {
+            itemDetailsEl.innerHTML = `<p>No details available for "${itemName}".</p>`;
+        }
+    }
+
+
+    // This event listener should still be present to ensure gameEl is found
+    // and startGame() is called only after the HTML content is fully loaded.
+    document.addEventListener("DOMContentLoaded", () => {
+      gameEl = document.getElementById("game");
+      if (!gameEl) {
+        console.error("Game element (id='game') not found! Script cannot proceed.");
+        return; 
+      }
+      startGame();
+    });
+  </script>
+</body>
+</html>
+�
